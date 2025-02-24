@@ -1,0 +1,206 @@
+mod! NAT-IF { 
+ pr(NAT)
+ op if_then{_}else{_} : Bool Nat Nat -> Nat .
+ vars N1 N2 : Nat .
+ eq if true then {N1} else {N2} = N1 .
+ eq if false then {N1} else {N2} = N2 . 
+}
+
+show NAT-IF .
+
+mod! GLIST(E :: TRIV) {
+ [Nil NnList < List]
+ op nil : -> Nil {constr} .
+ op _|_ : Elt.E List -> List {constr} .
+}
+
+mod! INF-LIST(E :: TRIV) {
+ [InfList]
+ pr(NAT)
+ pr(GLIST(E))
+ op _|_ : Elt.E InfList -> InfList {strat: (1 0)} .
+
+ vars X Y : Elt.E .
+ vars IL IL2 : InfList .
+ var NzN : NzNat .
+ var N : Nat .
+ var L : List .
+
+ -- Listを使うため、GLISTをimport
+ -- インデックスを指定するため、NATをimport
+ op take : InfList Nat -> List .
+ eq take(IL,0) = nil .
+ -- 先頭から１要素取得して、Popする、再度takeする
+ -- スライスではない
+ eq take(X | IL, NzN) = X | take(IL,p NzN) .
+
+ -- 先頭から指定個数pop()する
+ -- 戻りのsortがInfList
+ op drop : InfList Nat -> InfList .
+ eq drop(IL,0) = IL .
+ eq drop(X | IL, NzN) = drop(IL,p NzN) .
+
+ -- other function
+ op _@_ : List InfList -> InfList .
+ eq nil @ IL = IL .
+ -- append for inflist
+ eq (X | L) @ IL = X | (L @ IL) .
+
+ -- merge by each top elements
+ op zip : InfList InfList -> InfList .
+ eq zip(X | IL,Y | IL2) = X | Y | zip(IL,IL2) .
+}
+
+mod! STATE4 principal-sort State4 {
+ pr(LOC)
+ [State4]
+ op (locked:_,pc1:_,pc2:_,pc3:_,pc4:_) : Bool Loc Loc Loc Loc -> State4 {constr} .
+}
+
+mod! COMP4 {
+ pr(INF-LIST(STATE4)
+ * {sort InfList -> Comp, sort List -> FComp} )
+}
+
+-- スレッドIDのsortと条件分岐
+mod! TID4 {
+ [Tid]
+ -- 定数定義
+ ops t1 t2 t3 t4 : -> Tid {constr} .
+ op if_then{_}else{_} : Bool Tid Tid -> Tid .
+ vars T1 T2 : Tid .
+ eq if true then {T1} else {T2} = T1 .
+ eq if false then {T1} else {T2} = T2 .
+}
+
+mod! FMUTEX4 { 
+ pr(STATE4) 
+ pr(TID4)
+ op trans : State4 Tid -> State4 .
+ vars L1 L2 L3 L4 : Loc . 
+ var B : Bool .
+ eq trans((locked: true, pc1: rs, pc2: L2, pc3: L3, pc4: L4), t1) 
+ = (locked: true , pc1: rs, pc2: L2, pc3: L3, pc4: L4 ) .
+ eq trans((locked: true,pc1: L1,pc2: rs,pc3: L3,pc4: L4),t2)
+ = (locked: true,pc1: L1,pc2: rs,pc3: L3,pc4: L4) .
+
+ eq trans((locked: true,pc1: L1,pc2: L2,pc3: rs,pc4: L4),t3)
+ = (locked: true,pc1: L1,pc2: L2,pc3: rs,pc4: L4) .
+ -- t4
+ eq trans((locked: true,pc1: L1,pc2: L2,pc3: L3,pc4: rs),t4)
+ = (locked: true,pc1: L1,pc2: L2,pc3: L3,pc4: rs) .
+
+ -- 変化 rs -> ms
+ eq trans((locked: false,pc1: rs,pc2: L2,pc3: L3,pc4: L4),t1)
+ = (locked: false,pc1: ms,pc2: L2,pc3: L3, pc4: L4) .
+ eq trans((locked: false,pc1: L1,pc2: rs,pc3: L3,pc4: L4),t2)
+ = (locked: false,pc1: L1,pc2: ms,pc3: L3, pc4: L4) .
+ eq trans((locked: false,pc1: L1,pc2: L2,pc3: rs,pc4: L4),t3)
+ = (locked: false,pc1: L1,pc2: L2,pc3: ms, pc4: L4) .
+ eq trans((locked: false,pc1: L1,pc2: L2,pc3: L3,pc4: rs),t4)
+ = (locked: false,pc1: L1,pc2: L2,pc3: L3, pc4: ms) .
+
+ 
+ -- 変化 ms -> cs Trueに更新
+ eq trans((locked: B,pc1: ms,pc2: L2,pc3: L3,pc4: L4),t1)
+ = (locked: true,pc1: cs,pc2: L2,pc3: L3,pc4: L4) .
+
+ eq trans((locked: B,pc1: L1,pc2: ms,pc3: L3,pc4: L4),t2)
+ = (locked: true,pc1: L1,pc2: cs,pc3: L3,pc4: L4) .
+ eq trans((locked: B,pc1: L1,pc2: L2,pc3: ms,pc4: L4),t3)
+ = (locked: true,pc1: L1,pc2: L2,pc3: cs,pc4: L4) .
+ eq trans((locked: B,pc1: L1,pc2: L2,pc3: L3,pc4: ms),t4)
+ = (locked: true,pc1: L1,pc2: L2,pc3: L3,pc4: cs) .
+
+ 
+ -- 変化 cs -> rs Falseに更新
+ eq trans((locked: B ,pc1: cs,pc2: L2,pc3: L3,pc4: L4),t1)
+ = (locked: false,pc1: rs,pc2: L2,pc3: L3,pc4: L4) .
+ eq trans((locked: B ,pc1: L1,pc2: cs,pc3: L3,pc4: L4),t2)
+ = (locked: false,pc1: L1,pc2: rs,pc3: L3,pc4: L4) .
+ eq trans((locked: B ,pc1: L1,pc2: L2,pc3: cs,pc4: L4),t3)
+ = (locked: false,pc1: L1,pc2: L2,pc3: rs,pc4: L4) .
+ eq trans((locked: B ,pc1: L1,pc2: L2,pc3: L3,pc4: cs),t4)
+ = (locked: false,pc1: L1,pc2: L2,pc3: L3,pc4: rs) .
+}
+
+mod! SCHED4 { 
+ pr(NAT)
+ pr(INF-LIST(TID4) * {
+  sort InfList -> Sched
+  } )
+ var N : Nat .
+ vars sc1 sc2 sc3 sc4 : Sched .
+ -- 4 schedule
+ op if_then{_}elif{_}elif{_}else{_} : Nat Sched Sched Sched Sched -> Sched .
+ eq if 0 then {sc1} elif {sc2} elif {sc3} else {sc4} = sc1 .
+ eq if 1 then {sc1} elif {sc2} elif {sc3} else {sc4} = sc2 .
+ eq if 2 then {sc1} elif {sc2} elif {sc3} else {sc4} = sc3 .
+ eq if 3 then {sc1} elif {sc2} elif {sc3} else {sc4} = sc4 .
+ -- eq if true then {sc1} else {sc2} = sc1 .
+ -- eq if false then {sc1} else {sc2} = sc2 . 
+ op sched : Nat -> Sched .
+ eq sched(N) = if N rem 4
+then {t1 | sched(N quo 2)} elif {t2 | sched(N quo 2)} elif {t3 | sched(N quo 2)} else {t4 | sched(N quo 2)} .
+}
+
+open SCHED4 .
+ red take(sched(123),10) .
+ red take(sched(1234),10) .
+ red take(sched(12345),10) .
+ red take(sched(120),5) .
+close
+
+mod! SIM4 { 
+ pr(FMUTEX4) 
+ pr(COMP4)
+ pr(SCHED4)
+ op sim : State4 Nat -> Comp .
+ op sub-sim : State4 Sched -> Comp .
+ var S : State4 . 
+ var N : Nat . 
+ var NzD : NzNat .
+ var T : Tid . 
+ var TIL : Sched .
+ eq sim(S,N) = sub-sim(S,sched(N)) .
+ eq sub-sim(S,T | TIL) = S | sub-sim(trans(S,T),TIL) .
+
+ vars fc1 fc2 : FComp .
+ --  これいる？ => mutexcheckで終了するときfalseが必要
+ op if_then{_}else{_} : Bool FComp FComp -> FComp .
+ eq if true then {fc1} else {fc2} = fc1 .
+ eq if false then {fc1} else {fc2} = fc2 . 
+ -- mutex check
+ op mutex : State4 -> Bool .
+ vars L1 L2 L3 L4 : Loc .
+ var B : Bool .
+
+ -- 4つのロックのうちいずれか２つがcs状態でない => check: ok
+ eq mutex((locked: B,pc1: L1,pc2: L2, pc3: L3,pc4: L4)) 
+ = not (L1 == cs and L2 == cs) and not (L1 == cs and L3 == cs) and not (L1 == cs and L4 == cs) and not (L2 == cs and L3 == cs) and not (L2 == cs and L4 == cs) and not (L3 == cs and L4 == cs) .
+
+ op sim-check : State4 Nat Nat -> FComp .
+ op sub-sim-check : State4 Sched Nat -> FComp .
+ var D : Nat . 
+ var NzD : NzNat .
+ eq sim-check(S,N,D) = sub-sim-check(S,sched(N),D) .
+ eq sub-sim-check(S,T | TIL,0) = S | nil .
+ eq sub-sim-check(S,T | TIL,NzD)
+ = if mutex(S) then {S | sub-sim-check(trans(S,T),TIL,p NzD)}
+ else {S | nil} .
+}
+
+open SIM4 .
+ red take(sim((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),123),10) .
+ red take(sim((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),1234),10) .
+ red take(sim((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),12345),10) .
+ red take(sim((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),2222),5) .
+close
+
+open SIM4 .
+ red sim-check((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),123,10) .
+ red sim-check((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),1234,10) .
+ red sim-check((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),12345,10) .
+ red sim-check((locked: false,pc1: cs,pc2: cs,pc3: cs,pc4: cs),2222,10) .
+ red sim-check((locked: false,pc1: rs,pc2: rs,pc3: rs,pc4: rs),2222,10) .
+close

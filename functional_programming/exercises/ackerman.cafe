@@ -1,0 +1,14 @@
+open NAT .
+op ack : Nat Nat -> Nat .
+var Y : Nat .
+vars NzX NzY : NzNat .
+eq ack(0,Y) = Y + 1 .
+eq ack(NzX,0) = ack(p NzX,1) .
+eq ack(NzX,NzY) = ack(p NzX,ack(NzX,p NzY)) .
+--
+red ack(0,0) .
+red ack(1,1) .
+red ack(2,2) .
+red ack(3,2) .
+red ack(3,3) .
+close

@@ -1,0 +1,376 @@
+-- モジュールの用意
+mod! PNAT1 {
+ [PNat]
+ op 0 : -> PNat {constr} .
+ op s : PNat -> PNat {constr} .
+ vars X Y Z : PNat .
+ eq (0 = s(Y)) = false .
+ eq (s(X) = s(Y)) = (X = Y) .
+ op _+_ : PNat PNat -> PNat .
+ eq 0 + Y = Y . -- (+1)
+ eq s(X) + Y = s(X + Y) . -- (+2)
+ op _*_ : PNat PNat -> PNat .
+ eq 0 * Y = 0 . -- (*1)
+ eq s(X) * Y = (X * Y) + Y . -- (*2)
+ op fact1 : PNat -> PNat .
+ eq fact1(0) = s(0) . -- (f1-1)
+ eq fact1(s(X)) = s(X) * fact1(X) . -- (f1-2)
+ op fact2 : PNat -> PNat .
+ op sfact2 : PNat PNat -> PNat .
+ eq fact2(X) = sfact2(X,s(0)) . -- (f2)
+ eq sfact2(0,Y) = Y . -- (sf2-1)
+ eq sfact2(s(X),Y) = sfact2(X,s(X) * Y) . -- (sf2-2)
+}
+
+-- "Theorem 1. [_+_ is associative (assoc+)]
+-- (X + Y) + Z = X + (Y + Z)
+-- Proof. By induction on X."
+open PNAT1 .
+ :goal { eq [assoc+] : (X + Y) + Z = X + (Y + Z) . }
+ :ind on (X:PNat)
+ :apply(si)
+ -- I. Base case
+ :apply(tc)
+ :apply(rd)
+ -- -- II. Induction case
+ :apply(tc)
+ :desc .
+ :apply(rd)
+ :desc .
+close
+-- "End of Proof of Theorem 1"
+
+-- "Lemma 1. [Right zero of _+_ (rz+)]
+-- X + 0 = X
+-- Proof. By induction on X."
+open PNAT1 .
+ :goal { eq [rz+] : X + 0 = X . }
+ :ind on (X:PNat)
+ :apply(si)
+ -- I. Base case
+ :apply(rd)
+--  -- II. Induction case
+ :apply(rd)
+close
+-- "End of Proof of Lemma 1"
+
+-- "Lemma 2. [Right successor of _+_ (rs+)]
+-- X + s(Y) = s(X + Y)
+-- Proof. By induction on X."
+open PNAT1 .
+ -- ラベルがつけられている
+ :goal { eq [rs+] : X + s(Y) = s(X + Y) . }
+ :ind on (X:PNat)
+ :apply(si)
+ -- I. Base case
+ :apply(tc)
+ :apply(rd)
+ -- II. Induction case
+ :apply(tc)
+ :apply(rd)
+close
+ -- "End of Proof of Lemma 2"
+
+mod! PNAT1-RZRS+ {
+ pr(PNAT1)
+ vars X Y : PNat .
+ -- proved lemma 
+ eq X + 0 = X .
+ eq X + s(Y) = s(X + Y) .
+}
+
+-- "Theorem 2. [Commutativity of _+_ (comm+)]
+-- X + Y = Y + X
+-- Proof. By induction on X."
+open PNAT1-RZRS+ .
+ :goal { eq [comm+] : X + Y = Y + X . }
+ :ind on (X:PNat)
+ :apply(si)
+ -- I. Base case
+ :apply(tc)
+ :apply(rd)
+ -- II. Induction case
+ :apply(tc)
+ --  なんでs(X+Y)になる？ eq [TC STEP]: s((Y@PNat + X#PNat)) = s((Y@PNat + X#PNat))
+ :apply(rd)
+close
+
+-- モジュールの用意
+mod! PNAT2 {
+ [PNat]
+ op 0 : -> PNat {constr} .
+ op s : PNat -> PNat {constr} .
+ vars X Y Z : PNat .
+ eq (0 = s(Y)) = false .
+ eq (s(X) = s(Y)) = (X = Y) .
+ op _+_ : PNat PNat -> PNat {assoc comm} .
+ eq 0 + Y = Y . -- (+1)
+ eq s(X) + Y = s(X + Y) . -- (+2)
+ op _*_ : PNat PNat -> PNat .
+ eq 0 * Y = 0 . -- (*1)
+ eq s(X) * Y = (X * Y) + Y . -- (*2)
+ op fact1 : PNat -> PNat .
+ eq fact1(0) = s(0) . -- (f1-1)
+ eq fact1(s(X)) = s(X) * fact1(X) . -- (f1-2)
+ op fact2 : PNat -> PNat .
+ op sfact2 : PNat PNat -> PNat .
+ eq fact2(X) = sfact2(X,s(0)) . -- (f2)
+ eq sfact2(0,Y) = Y . -- (sf2-1)
+ eq sfact2(s(X),Y) = sfact2(X,s(X) * Y) . -- (sf2-2)
+}
+
+-- "Lemma 4 [distributive law of _*_ over _+_ (d*o+)]
+-- (X + Y) * Z = (X * Z) + (Y * Z)
+-- Proof. By induction on X."
+open PNAT2 .
+:goal { eq [d*o+] : (X + Y) * Z = (X * Z) + (Y * Z) . }
+:ind on (X:PNat)
+:apply(si)
+-- I. Base case
+:apply(tc)
+:apply(rd)
+-- II. Induction case
+:apply(tc)
+:apply(rd)
+close
+-- "End of Proof of Lemma 4"
+
+mod! PNAT2-D*O+ {
+ pr(PNAT2)
+ vars X Y Z : PNat .
+ -- distributive law of _*_
+ eq (X + Y) * Z = (X * Z) + (Y * Z) .
+}
+
+-- "Theorem 3 [Associativity of _*_ (assoc*)]
+-- (X * Y) * Z = X * (Y * Z)
+-- Proof. By induction on X."
+open PNAT2-D*O+ .
+:goal { eq [assoc*] : (X * Y) * Z = X * (Y * Z) . }
+:ind on (X:PNat)
+:apply(si)
+-- I. Base case
+:apply(tc)
+:apply(rd)
+-- II. Induction case
+:apply(tc)
+:apply(rd)
+close
+-- "End of Proof of Theorem 3"
+
+-- "Lemma 4 [Right zero of _*_ (rz*)]
+-- X * 0 = 0
+-- Proof. By induction on X."
+open PNAT2-D*O+ .
+:goal { eq [rz*] : X * 0 = 0 . }
+:ind on (X:PNat)
+:apply(si)
+-- I. Base case
+:apply(rd)
+-- II. Induction case
+:apply(rd)
+close
+-- "End of Proof of Lemma 4"
+
+-- "Lemma 5 [Right successor of _*_ (rs*)]
+-- X * s(Y) = (X * Y) + X
+-- Proof. By induction on X."
+open PNAT2-D*O+ .
+:goal { eq [rs*] : X * s(Y) = (X * Y) + X . }
+:ind on (X:PNat)
+:apply(si)
+-- I. Base case
+:apply(tc)
+:apply(rd)
+-- II. Induction case
+:apply(tc)
+:apply(rd)
+close
+-- "End of Proof of Lemma 5"
+
+mod! PNAT2-RZRS* {
+ pr(PNAT2)
+ vars X Y : PNat .
+ eq X * 0 = 0 .
+ eq X * s(Y) = (X * Y) + X .
+}
+
+-- "Theorem 4. [Commutativity of _*_ (comm*)]
+-- X * Y = Y * X
+-- Proof. By induction on X."
+open PNAT2-RZRS* .
+ :goal { eq [comm*] : X * Y = Y * X . }
+ :ind on (X:PNat)
+ :apply(si)
+ -- I. Base case
+ :apply(tc)
+ :apply(rd)
+ -- II. Induction case
+ :apply(tc)
+ :apply(rd)
+close
+-- "End of Proof of Theorem 4"
+
+mod! PNAT3 {
+ [PNat]
+ op 0 : -> PNat {constr} .
+ op s : PNat -> PNat {constr} .
+ vars X Y Z : PNat .
+ eq (0 = s(Y)) = false .
+ eq (s(X) = s(Y)) = (X = Y) .
+ op _+_ : PNat PNat -> PNat {assoc comm} .
+ eq 0 + Y = Y . -- (+1)
+ eq s(X) + Y = s(X + Y) . -- (+2)
+ op _*_ : PNat PNat -> PNat {assoc comm} .
+ eq 0 * Y = 0 . -- (*1)
+ eq s(X) * Y = (X * Y) + Y . -- (*2)
+ op fact1 : PNat -> PNat .
+ eq fact1(0) = s(0) . -- (f1-1)
+ eq fact1(s(X)) = s(X) * fact1(X) . -- (f1-2)
+ op fact2 : PNat -> PNat .
+ op sfact2 : PNat PNat -> PNat .
+ eq fact2(X) = sfact2(X,s(0)) . -- (f2)
+ eq sfact2(0,Y) = Y . -- (sf2-1)
+ eq sfact2(s(X),Y) = sfact2(X,s(X) * Y) . -- (sf2-2)
+}
+
+mod! PNAT3-D*O+ {
+ pr(PNAT3)
+ vars X Y Z : PNat .
+ -- distributive law
+ eq (X + Y) * Z = (X * Z) + (Y * Z) .
+}
+
+-- "Lemma 6 [Property of sfact2 (sf2-p)]
+-- Y * sfact2(X,Z) = sfact2(X,Y * Z)
+-- Proof. By induction on X."
+open PNAT3-D*O+ .
+ :goal { eq [sf2-p*] : Y * sfact2(X,Z) = sfact2(X,Y * Z) . }
+ :ind on (X:PNat)
+ :apply(si)
+ -- I. Base case
+ :apply(tc)
+ :apply(rd)
+ -- II. Induction case
+ :apply(tc)
+ :apply(rd)
+close
+-- "End of Proof of Lemma 6
+
+mod! PNAT3-SF2-P {
+ pr(PNAT3)
+ vars X Y Z : PNat .
+ eq [sf2-p] : Y * sfact2(X,Z) = sfact2(X,Y * Z) .
+}
+
+-- "Theorem 5 [Correctness of tail recursive fact (ctrf)]
+-- fact1(X) = fact2(X)
+-- Proof. By induction on X."
+open PNAT3-SF2-P .
+ :goal { eq [ctrf] : fact1(X) = fact2(X) . }
+ :ind on (X:PNat)
+ :apply(si)
+ -- I. Base case
+ :apply(tc)
+ :apply(rd)
+ -- II. Induction case
+ :apply(tc)
+ :apply(rd)
+close
+
+mod! LIST1 (E :: TRIV) {
+ [List]
+ op nil : -> List {constr
+ }
+ op _|_ : Elt.E List -> List {constr} .
+ op _@_ : List List -> List .
+ op rev1 : List -> List .
+ op rev2 : List -> List .
+ op sr2 : List List -> List .
+ vars E E2 : Elt.E .
+ vars L1 L2 L3 : List .
+ eq (nil = E | L1) = false .
+ eq (E | L1 = E2 | L2) = (E = E2) and (L1 = L2) .
+ eq nil @ L2 = L2 . -- (@1)
+ eq (E | L1) @ L2 = E | (L1 @ L2) . -- (@2)
+ eq rev1(nil) = nil . -- (r1-1)
+ eq rev1(E | L1) = rev1(L1) @ (E | nil) . -- (r1-2)
+ eq rev2(L1) = sr2(L1,nil) . -- (r2)
+ eq sr2(nil,L2) = L2 . -- (sr2-1)
+ eq sr2(E | L1,L2) = sr2(L1,E | L2) . -- (sr2-2)
+}
+
+-- "Theorem 7. [Associativity of _@_ (assoc@)]
+-- (L1 @ L2) @ L3 = L1 @ (L2 @ L3)
+-- Proof. By induction on L1."
+open LIST1 .
+ :goal { eq [assoc@] : (L1 @ L2) @ L3 = L1 @ (L2 @ L3) . }
+ :ind on (L1:List)
+ :apply(si)
+ -- I. Base case
+ :apply(tc)
+ :apply(rd)
+ -- II. Induction case
+ :apply(tc)
+ :apply(rd)
+close
+-- "End of Proof of Theorem 7"
+
+mod! LIST2 (E :: TRIV) {
+ [List]
+ op nil : -> List {constr}
+ op _|_ : Elt.E List -> List {constr} .
+ op _@_ : List List -> List {assoc} .
+ op rev1 : List -> List .
+ op rev2 : List -> List .
+ op sr2 : List List -> List .
+ vars E E2 : Elt.E .
+ vars L1 L2 L3 : List .
+ eq (nil = E | L1) = false .
+ eq (E | L1 = E2 | L2) = (E = E2) and (L1 = L2) .
+ eq nil @ L2 = L2 . -- (@1)
+ eq (E | L1) @ L2 = E | (L1 @ L2) . -- (@2)
+ eq rev1(nil) = nil . -- (r1-1)
+ eq rev1(E | L1) = rev1(L1) @ (E | nil) . -- (r1-2)
+ eq rev2(L1) = sr2(L1,nil) . -- (r2)
+ eq sr2(nil,L2) = L2 . -- (sr2-1)
+ eq sr2(E | L1,L2) = sr2(L1,E | L2) . -- (sr2-2)
+}
+
+-- "Lemma 8 [Property of sr2 (sr2-p)]
+-- sr2(L1,E2 | L2) = sr2(L1,nil) @ (E2 | L2)
+-- Proof. By induction on L1."
+open LIST2 .
+:goal { eq [sr2-p] : sr2(L1,E2 | L2) = sr2(L1,nil) @ (E2 | L2) . }
+:ind on (L1:List)
+:apply(si)
+-- I. Base case
+:apply(tc)
+:apply(rd)
+-- II. Induction case
+:apply(tc)
+:apply(rd)
+close
+-- "End of Proof of Lemma 8"
+
+mod! LIST2-SR2-P {
+ pr(LIST2)
+ vars E E2 : Elt.E .
+ vars L1 L2 : List .
+ eq [sr2-p] : sr2(L1,E2 | L2) = sr2(L1,nil) @ (E2 | L2) .
+}
+
+-- "Theorem 8. [Correctness of a tail recursive rev (ctrr)]
+-- rev1(L1) = rev2(L1)
+-- Proof. By induction on L1."
+
+open LIST2-SR2-P .
+ :goal { eq [ctrr] : rev1(L1) = rev2(L1) . }
+ :ind on (L1:List)
+ :apply (si)
+ -- I. Base case
+ :apply(rd)
+ -- II. Induction case
+ :apply(rd)
+close
+-- "End of Proof of Theorem 8"

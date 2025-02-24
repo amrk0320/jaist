@@ -1,0 +1,105 @@
+mod! NAT-ERR { 
+ pr(NAT)
+ [Nat ErrNat < Nat&Err]
+ op errNat : -> ErrNat {constr} .
+ op p_ : Zero -> ErrNat .
+ op p_ : ErrNat -> ErrNat .
+ op p_ : Nat&Err -> Nat&Err .
+ op _quo_ : Nat&Err Zero -> ErrNat .
+ op _quo_ : Nat&Err ErrNat -> ErrNat .
+ op _quo_ : ErrNat Nat&Err -> ErrNat .
+ op _quo_ : Nat&Err Nat&Err -> Nat&Err .
+
+ var NE : Nat&Err .
+ eq p 0 = errNat .
+ eq p errNat = errNat .
+ eq NE quo 0 = errNat .
+ eq NE quo errNat = errNat .
+ eq errNat quo NE = errNat .
+}
+
+mod! NATLIST { 
+-- 外部モジュールの読み込み
+pr(NAT)
+pr(NAT-ERR)
+-- 　connected component の定義
+-- なんでこの定義必要？
+[Nil NnNatList < NatList]
+
+op nil : -> Nil {constr} .
+op _|_ : Nat NatList -> NnNatList {constr} .
+
+-- 型の実装
+op hd : Nil -> ErrNat .
+op hd : NnNatList -> Nat .
+op hd : NatList -> Nat&Err .
+
+var X : Nat .
+var Y : Nat .
+var L : NatList .
+var L2 : NatList .
+
+-- 関数の実装
+eq hd(nil) = errNat .
+eq hd(X | L) = X .
+
+op tl : NatList -> NatList .
+-- 結合
+op _@_ : NatList NatList -> NatList . 
+
+op [_.._] : Nat Nat -> NatList .
+op if_then {_} else {_} : Bool NatList NatList -> NatList .
+eq tl(nil) = nil .
+eq tl(X | L) = L .
+-- 配列の結合
+eq nil @ L2 = L2 .
+eq (X | L) @ L2 = X | (L @ L2) .
+
+eq [X .. Y] = if X > Y then {nil} else {X | [X + 1 .. Y]} .
+eq if true then {L} else {L2} = L .
+eq if false then {L} else {L2} = L2 .
+}
+
+mod! MERGESORT {
+ -- imports
+ pr(NATLIST)
+ --  配列のサイズを取得する
+ op size : NatList -> Nat .
+ -- -- ソート結合
+ op _#_ : NatList NatList -> NatList .
+ -- -- signature
+ op msort : NatList -> NatList .
+ -- リストをあるインデックス以前、以降でスライスする
+ op indexpartition : NatList NatList NatList Nat -> NatList .
+ vars X Y I : Nat .
+ vars L LL RL LR RR : NatList .
+
+-- sizeの実装
+eq size(nil) = 0 .
+eq size(X | L) = 1 + size(L) .
+
+-- ２つのリストのソート結合
+eq L # nil = L .
+eq nil # L = L .
+eq nil # nil = nil .
+eq (X | L) # (Y | LL) = if X < Y then {(X | nil) @ (L # (Y | LL))} else {(Y | nil) @ ((X | L) # LL)} .
+
+ -- equations
+ -- sort`
+ eq msort(X | nil) = X | nil .
+ eq msort(nil) = nil .
+ eq msort(L) = indexpartition(L, nil, nil, size(L) quo 2) .
+ -- 分割
+ eq indexpartition(X | L, LL, LR, I) = if size(LL) < I then { indexpartition(L, X | LL, LR, I) } else {indexpartition(L, LL, X | LR, I) } .
+ -- 分割終了
+ eq indexpartition(nil, LL, LR, I) = msort(LL) # msort(LR) .
+}
+
+open MERGESORT .
+ red msort(nil) .
+ red msort(1 | nil) .
+ red msort(5 | 1 | nil) .
+ red msort(1 | 5 | nil) .
+ red msort(7 | 1 | 5 | nil) .
+ red msort(4 | 7 | 5 | 1 | 0 | 3 | 6 | 2 | nil) .
+close

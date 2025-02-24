@@ -1,0 +1,242 @@
+mod* TRIV-ERR {
+ [Elt Err < Elt&Err]
+ op err : -> Err .
+}
+
+mod! GLIST-ERR(E :: TRIV-ERR) {
+ [Nil NnList < List]
+ [List ErrList < List&Err]
+ op nil : -> Nil {constr} .
+ op _|_ : Elt.E List -> List {constr} .
+ op errList : -> ErrList {constr} .
+ op _|_ : Elt&Err.E List&Err -> List&Err .
+ op hd : Nil -> Err.E .
+ op hd : NnList -> Elt.E .
+ op hd : ErrList -> Err.E .
+ op hd : List&Err -> Elt&Err.E .
+ op tl : Nil -> ErrList .
+ op tl : NnList -> List .
+ op tl : ErrList -> ErrList .
+ op tl : List&Err -> List&Err .
+ op _@_ : List List -> List .
+ op _@_ : ErrList List&Err -> ErrList .
+ op _@_ : List&Err ErrList -> ErrList .
+ op _@_ : List&Err List&Err -> List&Err .
+ op if_then{_}else{_} : Bool List&Err List&Err -> List&Err .
+ var X : Elt.E .
+ var XE : Elt&Err.E .
+ vars L L2 : List .
+ vars LE LE2 : List&Err .
+ eq err.E | LE = errList .
+ eq XE | errList = errList .
+ eq hd(nil) = err.E .
+ eq hd(X | L) = X .
+ eq hd(errList) = err.E .
+ eq tl(nil) = errList .
+ eq tl(X | L) = L .
+ eq tl(errList) = errList .
+ eq nil @ L2 = L2 .
+ eq (X | L) @ L2 = X | (L @ L2) .
+ eq errList @ LE = errList .
+ eq LE @ errList = errList .
+ eq if true then {LE} else {LE2} = LE .
+ eq if false then {LE} else {LE2} = LE2 .
+}
+
+mod! NAT-ERR { 
+ pr(NAT)
+ [Nat ErrNat < Nat&Err]
+ op errNat : -> ErrNat {constr} .
+ op _quo_ : Nat&Err Zero -> ErrNat .
+ op _quo_ : Nat&Err ErrNat -> ErrNat .
+ op _quo_ : ErrNat Nat&Err -> ErrNat .
+ op _quo_ : Nat&Err Nat&Err -> Nat&Err .
+}
+
+mod* TRIV-ERR-ORD {
+[Elt Err < Elt&Err]
+op err : -> Err .
+op ord : Elt Elt -> Bool .
+}
+
+mod! GMERGESORT(E :: TRIV-ERR-ORD ) {
+ -- genericリストをimports
+ pr(GLIST-ERR(E))
+ -- 件数の処理のため自然数をimport
+ pr(NAT-ERR)
+ --  配列のサイズを取得する
+ op size : List -> Nat .
+ -- -- ソート結合
+ op _#_ : List List -> List .
+ -- -- signature
+ op msort : List -> List .
+ -- リストをあるインデックス以前、以降でスライスする
+ op indexpartition : List List List Nat -> List .
+ -- 要素
+ vars X Y : Elt.E .
+ -- インデックス
+ var I : Nat .
+ vars L LL RL LR RR : List .
+
+-- sizeの実装
+eq size(nil) = 0 .
+eq size(X | L) = 1 + size(L) .
+
+-- ２つのリストのソート結合
+eq L # nil = L .
+eq nil # L = L .
+eq nil # nil = nil .
+eq (X | L) # (Y | LL) = if ord.E(X,Y) then {(X | nil) @ (L # (Y | LL))} else {(Y | nil) @ ((X | L) # LL)} .
+
+ -- equations
+ -- sort`
+ eq msort(X | nil) = X | nil .
+ eq msort(nil) = nil .
+ eq msort(L) = indexpartition(L, nil, nil, size(L) quo 2) .
+ -- 分割
+ eq indexpartition(X | L, LL, LR, I) = if size(LL) < I then { indexpartition(L, X | LL, LR, I) } else {indexpartition(L, LL, X | LR, I) } .
+ -- 分割終了
+ eq indexpartition(nil, LL, LR, I) = msort(LL) # msort(LR) .
+}
+
+view TRIV-ERR-ORD2NAT-ERR from TRIV-ERR-ORD to NAT-ERR {
+ sort Elt -> Nat,
+ sort Err -> ErrNat,
+ sort Elt&Err -> Nat&Err,
+ op err -> errNat,
+ op ord -> _<_,
+}
+
+open GMERGESORT(E <= TRIV-ERR-ORD2NAT-ERR) .
+ red msort(4 | 7 | 5 | 1 | 0 | 3 | 6 | 2 | nil) .
+ red msort(2 | 1 | 3 | 4 | 0 | nil) .
+ red msort(100 | 10000 | 10 | 10000 | 5 | nil) .
+close
+
+
+mod! STRING-ERR { 
+ pr(STRING)
+ [String ErrString < String&Err]
+ op errStr : -> ErrString {constr} . 
+}
+
+view TRIV-ERR-ORD2STRING-ERR from TRIV-ERR-ORD to STRING-ERR {
+ sort Elt -> String,
+ sort Err -> ErrString,
+ sort Elt&Err -> String&Err,
+ op err -> errStr,
+ op ord -> string<,
+}
+
+open GMERGESORT(E <= TRIV-ERR-ORD2STRING-ERR) .
+ red msort("Lisp" | "Python" | "Pascal" | "CafeOBJ" | "C" |
+"Java" | "Prolog" | "Fortran" | nil) .
+ red msort("zzzzz" | "z" | "yyy" | "yy" | "xxxxxxxx" | "z" | nil) .
+ red msort("Z" | "z" | nil) .
+close
+
+-- ORD付きのgenericのリストを
+mod! GLIST-ERR-ORD(E :: TRIV-ERR-ORD) {
+ [Nil NnList < List]
+ [List ErrList < List&Err]
+ op nil : -> Nil {constr} .
+ op _|_ : Elt.E List -> List {constr} .
+ op errList : -> ErrList {constr} .
+ op _|_ : Elt&Err.E List&Err -> List&Err .
+ op hd : Nil -> Err.E .
+ op hd : NnList -> Elt.E .
+ op hd : ErrList -> Err.E .
+ op hd : List&Err -> Elt&Err.E .
+ op tl : Nil -> ErrList .
+ op tl : NnList -> List .
+ op tl : ErrList -> ErrList .
+ op tl : List&Err -> List&Err .
+ op _@_ : List List -> List .
+ op _@_ : ErrList List&Err -> ErrList .
+ op _@_ : List&Err ErrList -> ErrList .
+ op _@_ : List&Err List&Err -> List&Err .
+ op if_then{_}else{_} : Bool List&Err List&Err -> List&Err .
+ var X : Elt.E .
+ var Y : Elt.E .
+ var XE : Elt&Err.E .
+ vars L L2 : List .
+ vars LE LE2 : List&Err .
+ eq err.E | LE = errList .
+ eq XE | errList = errList .
+ eq hd(nil) = err.E .
+ eq hd(X | L) = X .
+ eq hd(errList) = err.E .
+ eq tl(nil) = errList .
+ eq tl(X | L) = L .
+ eq tl(errList) = errList .
+ eq nil @ L2 = L2 .
+ eq (X | L) @ L2 = X | (L @ L2) .
+ eq errList @ LE = errList .
+ eq LE @ errList = errList .
+ eq if true then {LE} else {LE2} = LE .
+ eq if false then {LE} else {LE2} = LE2 .
+ -- ord
+ op ord : List List -> Bool .
+ eq ord(nil,nil) = false .
+ eq ord(nil,Y | L2) = true .
+ eq ord(X | L,nil) = false .
+ eq ord(X | L,Y | L2) = ord.E(X,Y) or ((not ord.E(Y,X)) and ord(L,L2)) .
+}
+
+-- ORDNATLISTの作成、名前の変更が必要。なんで？任意の要素を自然数のリストに変更したいから
+mod! NATLIST-ERR-ORD {
+pr(GLIST-ERR-ORD(E <= TRIV-ERR-ORD2NAT-ERR)
+* {sort List -> NatList,
+sort Nil -> NLNil,
+sort NnList -> NnNatList,
+sort ErrList -> ErrNatList,
+sort List&Err -> NatList&Err,
+op nil -> nlnil,
+op errList -> errNatList } )
+}
+
+-- ORDNATLISTLISTの変換
+view TRIV-ERR-ORD2NATLIST-ERR-ORD from TRIV-ERR-ORD to NATLIST-ERR-ORD {
+ sort Elt -> NatList,
+ sort Err -> ErrNatList,
+ sort Elt&Err -> NatList&Err,
+ op err -> errNatList,
+ op ord -> ord,
+}
+
+open GMERGESORT(E <= TRIV-ERR-ORD2NATLIST-ERR-ORD) .
+red msort((1 | 2 | nlnil) | (3 | 0 | 2 | nlnil) | (2 | nlnil) |
+(0 | nlnil) | nlnil | (1 | 1 | nlnil) | (3 | 0 | 1 | nlnil) |
+(1 | 0 | nlnil) | nil) .
+red msort((100 | 200 | nlnil) | (100 | 100 | nlnil) | (1 | 2 | 3 | nlnil) | (200 | 100 | nlnil) | (100 | 100 | nlnil) | nil) .
+close
+
+mod! STRINGLIST-ERR-ORD {
+pr(GLIST-ERR-ORD(E <= TRIV-ERR-ORD2STRING-ERR)
+* {sort List -> StringList,
+sort Nil -> SLNil,
+sort NnList -> NnStringList,
+sort ErrList -> ErrStringList,
+sort List&Err -> StringList&Err,
+op nil -> slnil,
+op errList -> errStringList } )
+}
+
+-- ORDSTRINGLISTLISTの変換
+view TRIV-ERR-ORD2STRINGLIST-ERR-ORD from TRIV-ERR-ORD to STRINGLIST-ERR-ORD {
+ sort Elt -> StringList,
+ sort Err -> ErrStringList,
+ sort Elt&Err -> StringList&Err,
+ op err -> errStringList,
+ op ord -> ord,
+}
+
+open GMERGESORT(E <= TRIV-ERR-ORD2STRINGLIST-ERR-ORD) .
+ red msort(("CafeOBJ" | "Fortran" | slnil) |
+("Java" | "C" | "Fortran" | slnil) | ("Fortran" | slnil) |
+("C" | slnil) | slnil | ("CafeOBJ" | "CafeOBJ" | slnil) |
+("Java" | "C" | "CafeOBJ" | slnil) | ("CafeOBJ" | "C" | slnil) | nil) .
+
+ red msort(("aaa" | "aaa" | "AAA" | slnil) |
+  ("aaa" | "aaa" | "aaa" | slnil) | ("aaA" | "aaa" | "aaa" | slnil) | ("aaa" | "aaa" | "aAA" | slnil) | nil) .
+close

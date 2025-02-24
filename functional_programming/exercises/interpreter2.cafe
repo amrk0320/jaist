@@ -1,0 +1,407 @@
+-- 変数のsort
+mod! VAR principal-sort Var {
+  [Var]
+  ops x y z tmp : -> Var .
+}
+
+--
+-- Some modules (data stuructures) used in the Minila
+-- implementation.
+--
+
+mod! BOOL-ERR {
+  pr(BOOL)
+  [Bool ErrBool < Bool&Err]
+  op errBool : -> ErrBool {constr} .
+}
+
+mod! NAT-ERR {
+  pr(NAT)
+  pr(BOOL-ERR)
+  [Nat ErrNat < Nat&Err]
+  op errNat : -> ErrNat {constr} .
+  op p_ : Nat&Err -> Nat&Err .
+  op _+_ : Nat&Err Nat&Err -> Nat&Err {assoc comm} .
+  op _*_ : Nat&Err Nat&Err -> Nat&Err {assoc comm} .
+  op sd : Nat&Err Nat&Err -> Nat&Err .
+  op _quo_ : Nat&Err Nat&Err -> Nat&Err .
+  op _rem_ : Nat&Err Nat&Err -> Nat&Err .
+  op _<_ : Nat&Err Nat&Err -> Bool&Err .
+  op _>_ : Nat&Err Nat&Err -> Bool&Err .
+  op if_then{_}else{_} : Bool&Err Nat&Err Nat&Err -> Nat&Err .
+  --
+  var N : Nat .
+  vars N&E N&E1 N&E2 : Nat&Err .
+  -- p_
+  eq p 0 = errNat .
+  eq p errNat = errNat .
+  -- _+_
+  eq errNat + N&E = errNat .
+  -- _*_
+  eq errNat * N&E = errNat .
+  -- sd
+  eq sd(errNat,N&E) = errNat .
+  eq sd(N&E,errNat) = errNat .
+  -- _quo_
+  eq N quo 0 = errNat .
+  eq errNat quo N&E = errNat .
+  eq N&E quo errNat = errNat .
+  -- _rem_
+  eq N rem 0 = errNat .
+  eq errNat rem N&E = errNat .
+  eq N&E rem errNat = errNat .
+  -- _<_
+  eq errNat < N&E = errBool .
+  eq N&E < errNat = errBool .
+  -- _>_
+  eq errNat > N&E = errBool .
+  eq N&E > errNat = errBool .
+  -- if_then{_}else{_}
+  eq if true then {N&E1} else {N&E2} = N&E1 .
+  eq if false then {N&E1} else {N&E2} = N&E2 .
+}
+
+mod! PAIR (M :: TRIV, N :: TRIV) {
+  [Pair]
+  op (_,_) : Elt.M Elt.N -> Pair {constr} .
+}
+
+mod* TRIV-ERR {
+  [Elt Err < Elt&Err]
+  op err : -> Err {constr} .
+}
+
+mod! LIST (M :: TRIV-ERR) {
+  pr(NAT-ERR)
+  [List]
+  op nil : -> List {constr} .
+  op _|_ : Elt.M List -> List {constr} .
+  op _@_ : List List -> List {r-assoc} .
+  op nth : List Nat&Err -> Elt&Err.M .
+  op len : List -> Nat .
+  vars X Y : Elt.M .
+  vars L L1 : List .
+  var N : Nat .
+  var NzN : NzNat .
+  -- _@_
+  eq nil @ L = L .
+  eq (X | L1) @ L = X | (L1 @ L) .
+  -- nth
+  eq nth(L,errNat) = err.M .
+  eq nth(nil,N) = err.M .
+  eq nth((X | L),0) = X .
+  eq nth((X | L),NzN) = nth(L,p NzN) .
+  -- len
+  eq len(nil) = 0 .
+  eq len(X | L) = len(L) + 1 .
+}
+
+--
+-- Module VAR is declared in ast.cafe.
+--
+mod! ENTRY {
+  pr(PAIR(VAR,NAT) * {sort Pair -> Entry})
+  [Entry ErrEntry < Entry&Err]
+  op errEntry : -> ErrEntry .
+}
+
+view TRIV-ERR2ENTRY from TRIV-ERR to ENTRY {
+  sort Elt -> Entry,
+  sort Err -> ErrEntry,
+  sort Elt&Err -> Entry&Err,
+  op err -> errEntry
+}
+
+--
+-- Variables, together with values (natural numbers) are
+-- registered into an environment.
+-- An environment is implemented as tables from variables to
+-- natural numbers (more concretely as lists of pairs of variables
+-- and natural numbers).
+--
+mod! ENV {
+  pr(NAT-ERR)
+  pr(LIST(M <= TRIV-ERR2ENTRY)
+     * {sort List -> Env, op nil -> empEnv})
+  [Env ErrEnv < Env&Err]
+  op errEnv : -> ErrEnv {constr} .
+  op _|_ : Entry&Err Env&Err -> Env&Err .
+  op update : Env&Err Var Nat&Err -> Env&Err .
+  op lookup : Env&Err Var -> Nat&Err .
+  op if_then{_}else{_} : Bool&Err Env&Err Env&Err -> Env&Err .
+  --
+  var E : Env .
+  vars V V1 : Var .
+  vars N N1 : Nat .
+  vars E&E E&E1 E&E2 : Env&Err .
+  var N&E : Nat&Err .
+  var ET&E : Entry&Err .
+  -- _|_
+  eq errEntry | E&E = errEnv .
+  eq ET&E | errEnv = errEnv .
+  -- update
+  eq update(E&E,V,errNat) = errEnv .
+  eq update(errEnv,V,N&E) = errEnv .
+  eq update(empEnv,V,N) = (V,N) | empEnv .
+  eq update((V1,N1) | E,V,N)
+     = if V1 == V then {(V,N) | E} else {(V1,N1) | update(E,V,N)} .
+  -- lookup
+  eq lookup(errEnv,V) = errNat .
+  eq lookup(empEnv,V) = errNat .
+  eq lookup((V1,N1) | E,V)
+     = if V1 == V then {N1} else {lookup(E,V)} .
+  -- if_then{_}else{_}
+  eq if true then {E&E1} else {E&E2} = E&E1 .
+  eq if false then {E&E1} else {E&E2} = E&E2 .
+}
+
+open ENV .
+  ops x y : -> Var .
+  op env : -> Env .
+  eq env = update(update(empEnv,x,0),y,1) .
+  red env .
+  red errEnv .
+  red lookup(env,x) .
+  red lookup(env,y) .
+  red nth(env,1) .
+  red nth(env,2) .
+close
+
+--
+-- A stack is represented as a list of natural numbers.
+--
+
+view TRIV-ERR2NAT-ERR from TRIV-ERR to NAT-ERR {
+  sort Elt -> Nat,
+  sort Err -> ErrNat,
+  sort Elt&Err -> Nat&Err,
+  op err -> errNat
+}
+
+mod! STACK {
+  pr(LIST(M <= TRIV-ERR2NAT-ERR)
+     * {sort List -> Stack, op nil -> empstk} )
+  [Stack ErrStack < Stack&Err]
+  op errStack : -> ErrStack {constr} .
+  op _|_ : Nat&Err Stack&Err -> Stack&Err .
+  --
+  var S&E : Stack&Err .
+  var N&E : Nat&Err .
+  -- _|_
+  eq errNat | S&E = errStack .
+  eq N&E | errStack = errStack .
+}
+
+
+-- 式のsort と式を表現するmixin operationのコンストラクタの定義
+mod! EXP { 
+ pr(VAR) 
+ pr(NAT)
+ [Var < Exp]
+ op n : Nat -> Exp {constr} .
+ op _+_ : Exp Exp -> Exp {constr prec: 33 l-assoc} .
+ op _-_ : Exp Exp -> Exp {constr prec: 33 l-assoc} .
+ op _*_ : Exp Exp -> Exp {constr prec: 31 l-assoc} .
+ op _/_ : Exp Exp -> Exp {constr prec: 31 l-assoc} .
+ op _%_ : Exp Exp -> Exp {constr prec: 31 l-assoc} .
+ op _===_ : Exp Exp -> Exp {constr prec: 40 l-assoc} .
+ op _=!=_ : Exp Exp -> Exp {constr prec: 40 l-assoc} .
+ op _<_ : Exp Exp -> Exp {constr prec: 40 l-assoc} .
+ op _>_ : Exp Exp -> Exp {constr prec: 40 l-assoc} .
+ op _&&_ : Exp Exp -> Exp {constr prec: 50 l-assoc} .
+ op _||_ : Exp Exp -> Exp {constr prec: 55 l-assoc} .
+}
+
+open EXP .
+ ops x y z : -> Var .
+ -- EXPのopの定義よりreductionされる
+ red x + y - z * n(2) / x === n(10) + x * y || x =!= y
+ && n(1) + x + y > z .
+ red 2 > 1 .
+close
+
+-- statementがコードの実態
+mod! STM {
+ pr(EXP)
+ [Stm]
+ op estm : -> Stm {constr} .
+ op _:=_; : Var Exp -> Stm {constr} .
+ op if_{_}else{_} : Exp Stm Stm -> Stm {constr} .
+ op while_{_} : Exp Stm -> Stm {constr} .
+ op for_ _ _{_} : Var Exp Exp Stm -> Stm {constr} .
+ op _ _ : Stm Stm -> Stm {constr prec: 60 id: estm l-assoc} .
+}
+
+-- statementを評価して値を返す
+mod! INTERPRET {
+  pr(STM)
+  pr(ENV) 
+  -- ENVのsortのテーブル（変数, 値) のペアのリスト
+  -- 基本 式と環境を与えて、変数を持つ式から値を返す
+  op evalExp : Exp Env&Err -> Nat&Err .
+  vars E E1 E2 : Exp .
+  vars S S1 S2 : Stm .
+  var V : Var .
+  var EV : Env .
+  var N : Nat .
+  var NzN : NzNat .
+  eq evalExp(E,errEnv) = errNat .
+  -- 自然数だけ
+  eq evalExp(n(N),EV) = N .
+  -- 変数だけ => 環境から検索して値を返す
+  eq evalExp(V,EV) = lookup(EV,V) .
+  -- add + は[Exp]で定義されたop
+  eq evalExp(E1 + E2,EV) = evalExp(E1,EV) + evalExp(E2,EV) .
+  eq evalExp(E1 * E2,EV) = evalExp(E1,EV) * evalExp(E2,EV) .
+  -- sd 絶対値の差分
+  eq evalExp(E1 - E2,EV) = sd(evalExp(E1,EV),evalExp(E2,EV)) .
+  eq evalExp(E1 / E2,EV) = evalExp(E1,EV) quo evalExp(E2,EV) .
+  eq evalExp(E1 % E2,EV) = evalExp(E1,EV) rem evalExp(E2,EV) .
+  -- 0: false, 1: true
+  -- and => 片方0ならFalse
+  eq evalExp(E1 && E2,EV) = if evalExp(E1,EV) == errNat or evalExp(E2,EV) == errNat
+  then {errNat}
+  else { if (evalExp(E1,EV) == 0 or evalExp(E2,EV) == 0) then {0} else {1} } .
+  -- or => 両方0がfalse
+  eq evalExp(E1 || E2,EV) = if evalExp(E1,EV) == errNat or evalExp(E2,EV) == errNat
+  then {errNat}
+  else { if evalExp(E1,EV) == 0 and evalExp(E2,EV) == 0 then {0} else {1} } .
+  -- equal いずれかの式がerrNatを返す場合をチェックする =>　問題なければ1か0を返す
+  eq evalExp(E1 === E2,EV)
+  = if evalExp(E1,EV) == errNat or evalExp(E2,EV) == errNat
+  then {errNat}
+  else {if evalExp(E1,EV) == evalExp(E2,EV) then {1} else {0}} .
+  -- -- ==== の逆
+  eq evalExp(E1 =!= E2,EV)
+  = if evalExp(E1,EV) == errNat or evalExp(E2,EV) == errNat
+  then {errNat}
+  else {if evalExp(E1,EV) == evalExp(E2,EV) then {0} else {1}} .
+  -- < 
+  eq evalExp(E1 < E2,EV)
+  = if evalExp(E1,EV) == errNat or evalExp(E2,EV) == errNat
+  then {errNat}
+  else {if evalExp(E1,EV) < evalExp(E2,EV) then {1} else {0}} .
+  -- >
+  eq evalExp(E1 > E2,EV)
+  = if evalExp(E1,EV) == errNat or evalExp(E2,EV) == errNat
+  then {errNat}
+  else {if evalExp(E1,EV) > evalExp(E2,EV) then {1} else {0}} .
+
+  -- statemetnを入力に、Envを返す = プログラムの実行そのもの
+  op interpret : Stm -> Env&Err .
+  op eval : Stm Env&Err -> Env&Err .
+  op evalAssign : Var Nat&Err Env&Err -> Env&Err .
+  op evalIf : Nat&Err Stm Stm Env&Err -> Env&Err .
+  op evalWhile : Exp Stm Env&Err -> Env&Err .
+
+--   -- interpret
+--   -- entry point
+  eq interpret(S) = eval(S,empEnv) .
+--   -- eval
+--   -- evalでeq実装したstatementしかreductionできない
+  eq eval(S,errEnv) = errEnv .
+  eq eval(estm,EV) = EV .
+--   -- if文プログラムの場合
+--   -- if文プログラムの場合
+  eq eval(V := E ;,EV) = evalAssign(V,evalExp(E,EV),EV) .
+  -- evalAssign
+  eq evalAssign(V,errNat,EV) = errEnv .
+  eq evalAssign(V,N,errEnv) = errEnv .
+  -- envテーブルを更新
+  eq evalAssign(V,N,EV) = update(EV,V,N) .
+  
+  -- evalIf
+  -- if文プログラムの場合
+  eq eval(if E {S1} else {S2},EV) = evalIf(evalExp(E,EV),S1,S2,EV) .
+  -- if文の式とは整数値：0か青づ
+  eq evalIf(errNat,S1,S2,EV) = errEnv .
+  eq evalIf(N,S1,S2,errEnv) = errEnv .
+  eq evalIf(NzN,S1,S2,EV) = eval(S1, EV) . -- true
+  eq evalIf(0,S1,S2,EV) = eval(S2, EV) . -- false
+  -- evalWhile
+  -- stastementがwhile文の場合
+  eq eval(while E {S},EV) = evalWhile(E,S,EV) .
+  eq evalWhile(E,S,errEnv) = errEnv .
+  -- ループ内のStatemetnを実行すると１度Sで環境を返却する
+  
+  eq evalWhile(E,S,EV) = if evalExp(E,EV) == errNat then {errEnv} else {
+   if evalExp(E,EV) == 0 then {EV} else {
+    eval(while E {S},eval(S,EV))
+   }
+  } .
+  -- for文
+ eq eval(for V E1 E2 {S1},EV) = eval(
+   V := E1 ;
+   while V < E2 || V === E2 {
+   S1
+   V := V + n(1) ;
+   }
+  ,EV) .
+  -- evalExp
+  -- 逐次結合の場合
+  eq eval(S1 S2,errEnv) = errEnv .
+  eq eval(S1 S2,EV) = eval(S2, eval(S1, EV)) .
+}
+
+open INTERPRET .
+  ops x y z tmp : -> Var .
+
+  op e1 : -> Exp .
+  eq e1 = n(2) + n(3) .
+  red evalExp(e1,empEnv) .
+  red e1 .
+  
+  op e2 : -> Exp .
+  eq e2 = n(2) * n(3) / n(2) - n(1) * n(100).
+  red evalExp(e2,empEnv) .
+  
+  op e3 : -> Exp .
+  eq e3 = n(2) * n(3) / n(2) - n(1) * n(100) .
+  red evalExp(e2,empEnv) .
+  
+  op e4 : -> Exp .
+  eq e4 = (n(2) && n(1)) && ( n(2) =!= n(1) ) .
+  red evalExp(e4,empEnv) .
+
+  op p0 : -> Stm .
+  eq p0 = x := n(1) * n(2); .
+  red interpret(p0) .
+  
+  op p1 : -> Stm .
+  eq p1 = x := n(1) ;
+          for y n(1) n(10) {
+            x := y * x ;
+          } .
+  red p1 .
+  red interpret(p1) .
+
+  op p2 : -> Stm .
+  eq p2 = x := n(24) ;
+          y := n(30) ;
+          while y =!= n(0) {
+            z := x % y ;
+            x := y ;
+            y := z ;
+          } .
+  red p2 .
+  red interpret(p2) .
+
+  op p3 : -> Stm .
+  eq p3 = x := n(20000000000000000) ;
+          y := n(0) ;
+          z := x ;
+          while y =!= z {
+            if ((z - y) % n(2)) === n(0) {
+              tmp := y + (z - y) / n(2) ;
+            } else {
+              tmp := y + ((z - y) / n(2)) + n(1) ;
+            }
+            if tmp * tmp > x {
+              z := tmp - n(1) ;
+            } else {
+              y := tmp ;
+            }
+          } .
+  red interpret(p3) .
+close
+

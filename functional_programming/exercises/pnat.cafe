@@ -1,0 +1,346 @@
+-- 数学の自然数のモジュール
+mod! PNAT1 {
+ [PNat]
+ op 0 : -> PNat {constr} .
+ op s : PNat -> PNat {constr} .
+ vars X Y Z : PNat .
+ eq (0 = s(Y)) = false .
+ eq (s(X) = s(Y)) = (X = Y) .
+
+ -- 足し算の演算のeq
+ op _+_ : PNat PNat -> PNat .
+ eq 0 + Y = Y . -- (+1)
+ eq s(X) + Y = s(X + Y) .
+
+ -- 掛け算の演算のeq
+ op _*_ : PNat PNat -> PNat .
+ eq 0 * Y = 0 . -- (*1)
+ eq s(X) * Y = (X * Y) + Y .
+
+ -- 階乗
+ op fact1 : PNat -> PNat .
+ eq fact1(0) = s(0) . -- (f1-1)
+ eq fact1(s(X)) = s(X) * fact1(X) .
+
+ -- 末尾再帰
+ op fact2 : PNat -> PNat .
+ op sfact2 : PNat PNat -> PNat .
+ eq fact2(X) = sfact2(X,s(0)) . -- (f2)
+ eq sfact2(0,Y) = Y . -- (sf2-1)
+ eq sfact2(s(X),Y) = sfact2(X,s(X) * Y) .
+}
+
+-- 加算の交換法則と結合法則をrewriteできる
+mod! PNAT2 {
+ [PNat]
+ op 0 : -> PNat {constr} .
+ op s : PNat -> PNat {constr} .
+ vars X Y Z : PNat .
+ eq (0 = s(Y)) = false .
+ eq (s(X) = s(Y)) = (X = Y) .
+
+ -- 足し算の演算のeq
+ op _+_ : PNat PNat -> PNat {assoc comm} .
+ eq 0 + Y = Y . -- (+1)
+ eq s(X) + Y = s(X + Y) .
+
+ -- 掛け算の演算のeq
+ op _*_ : PNat PNat -> PNat .
+ eq 0 * Y = 0 . -- (*1)
+ eq s(X) * Y = (X * Y) + Y .
+
+ -- 階乗
+ op fact1 : PNat -> PNat .
+ eq fact1(0) = s(0) . -- (f1-1)
+ eq fact1(s(X)) = s(X) * fact1(X) .
+
+ -- 末尾再帰
+ op fact2 : PNat -> PNat .
+ op sfact2 : PNat PNat -> PNat .
+ eq fact2(X) = sfact2(X,s(0)) . -- (f2)
+ eq sfact2(0,Y) = Y . -- (sf2-1)
+ eq sfact2(s(X),Y) = sfact2(X,s(X) * Y) .
+}
+
+-- 加算、乗算の交換法則と結合法則をrewriteできる
+mod! PNAT3 {
+ [PNat]
+ op 0 : -> PNat {constr} .
+ op s : PNat -> PNat {constr} .
+ vars X Y Z : PNat .
+ eq (0 = s(Y)) = false .
+ eq (s(X) = s(Y)) = (X = Y) .
+
+ -- 足し算の演算のeq
+ op _+_ : PNat PNat -> PNat {assoc comm} .
+ eq 0 + Y = Y . -- (+1)
+ eq s(X) + Y = s(X + Y) .
+
+ -- 掛け算の演算のeq
+ op _*_ : PNat PNat -> PNat {assoc comm} .
+ eq 0 * Y = 0 . -- (*1)
+ eq s(X) * Y = (X * Y) + Y .
+
+ -- 階乗
+ op fact1 : PNat -> PNat .
+ eq fact1(0) = s(0) . -- (f1-1)
+ eq fact1(s(X)) = s(X) * fact1(X) .
+
+ -- 末尾再帰
+ op fact2 : PNat -> PNat .
+ op sfact2 : PNat PNat -> PNat .
+ eq fact2(X) = sfact2(X,s(0)) . -- (f2)
+ eq sfact2(0,Y) = Y . -- (sf2-1)
+ eq sfact2(s(X),Y) = sfact2(X,s(X) * Y) .
+}
+
+
+-- 証明1
+-- "Theorem 1 [associativity of _+_ (assoc+)]
+-- (X + Y) + Z = X + (Y + Z)
+-- Proof of Theorem 1. By structural induction on X.
+-- I. Base case"
+open PNAT1 .
+ -- fresh constants
+ ops y z : -> PNat .
+ -- check
+ -- これが正しくreductionできればbase caseの証明が完了
+ red (0 + y) + z = 0 + (y + z) .
+ -- red ((y)) = y .
+close
+
+-- "II. Induction case"
+open PNAT1 .
+ -- fresh constants
+ ops x y z : -> PNat .
+ -- IHのeqとして、追加のreductiuonとして利用する
+ eq (x + Y) + Z = x + (Y + Z) .
+ -- check
+ -- これが正しくreductionできればinduction caseの証明が完了
+ red (s(x) + y) + z = s(x) + (y + z) .
+close
+-- set trace whole off
+
+-- -- Theorem 2 [Commutativity of _+_ (comm+)] X + Y = Y + X
+-- -- Proof of Theorem 2 By structural induction on X.
+
+-- I. Base case
+open PNAT1 .
+ -- fresh constants
+ op y : -> PNat .
+ -- lemmaの追加 証明必要
+ eq X + 0 = X . -- (rz+)
+ -- check
+ red 0 + y = y + 0 .
+close
+
+-- II. Induction case
+open PNAT1 .
+-- fresh constants
+ops x y : -> PNat .
+-- lemmas
+eq X + s(Y) = s(X + Y) . -- (rs+)
+-- IH
+eq x + Y = Y + x .
+-- check
+red s(x) + y = y + s(x) .
+close
+
+-- Lemma 1 [Commutativity of _+_ (comm+)] X + 0 = X
+-- Proof of Theorem 2 By structural induction on X.
+
+-- I. Base case
+open PNAT1 .
+ -- check
+ red 0 + 0 = 0 .
+close
+
+-- II. Induction case
+open PNAT1 .
+-- fresh constants
+ops x y : -> PNat .
+-- IH
+eq x + 0 = x .
+-- check
+red s(x) + 0 = s(x) .
+close
+
+-- Lemma 2 [Commutativity of _+_ (comm+)] X + s(Y) = s(X+Y) 
+-- Proof of Theorem 2 By structural induction on X.
+
+-- I. Base case
+open PNAT1 .
+ -- fresh constants
+ ops x y : -> PNat .
+ -- check
+ red 0 + s(y) = s(0 + y) .
+close
+
+-- II. Induction case
+open PNAT1 .
+ -- fresh constants
+ ops x y : -> PNat .
+ -- IH
+ eq x + s(Y) = s(x + Y) .
+ -- check
+ red s(x) + s(y) = s(s(x) + y) .
+close
+
+
+-- -- Theorem 3 [Associativity of _*_ (assoc*)] (X * Y) * Z = X * (Y * Z)
+-- -- Proof of Theorem 3 By structural induction on X.
+
+
+-- I. Base case
+open PNAT2 .
+ -- fresh constants
+ ops y z : -> PNat .
+ -- check
+ red (0 * y) * z = 0 * (y * z) .
+close
+
+-- II. Induction case
+open PNAT2 .
+ -- fresh constants
+ ops x y z : -> PNat .
+ -- IH
+ eq (x * Y) * Z = x * (Y * Z) .
+ -- lemmas
+ -- なんでlemmaは変数？まだ証明されていないから？
+ eq (X + Y) * Z = (X * Z) + (Y * Z) . -- (d*0+)
+ -- check
+ -- reductionにはfresh constantを利用する
+ -- 定数同士のreductionで値によらず同じ式に帰着するか確認する
+ red (s(x) * y) * z = s(x) * (y * z) .
+close
+
+-- Lemma 3 [distribute of _*_ (d**)] (X + Y) * Z = (Y * Z) + (Y * Z)
+-- Proof of Theorem 3 By structural induction on X.
+
+-- I. Base case
+open PNAT2 .
+ -- fresh constants
+ ops y z : -> PNat .
+ -- check
+ red (0 + y) * z = (0 * z) + (y * z) .
+close
+
+-- II. Induction case
+open PNAT2 .
+ -- fresh constants
+ ops x y z : -> PNat .
+ -- IH
+ -- xについての仮定、X以外は変数Z
+ eq (x + Y) * Z = (x * Z) + (Y * Z) .
+ -- check
+ -- なんで変数のre
+ red (s(x) + y) * z = (s(x) * z) + (y * z) .
+close
+
+-- Theorem 4 [Commutativity of _*_ (comm*)] X * Y = Y * X
+-- Proof of Theorem 4 By structural induction on X.
+
+-- I. Base case
+open PNAT2 .
+ -- fresh constants
+ ops y : -> PNat .
+ -- lemma 4 rz*
+ eq X * 0 = 0 .
+ -- check
+ red  0 * y = y * 0 .
+close
+
+-- II. Induction case
+open PNAT2 .
+ -- fresh constants
+ ops x y : -> PNat .
+ -- IH
+ eq x * Y = Y * x .
+ -- lemma 5 rs*
+ eq X * s(Y) = (X * Y) + X .
+ -- check
+ red s(x) * y = y * s(x) .
+close
+
+-- Lemma 4 [Right zero of _*_ (rz*)] X * 0 = 0
+-- Proof of Lemma 4 By structural induction on X.
+
+-- I. Base case
+open PNAT2 .
+ -- check
+ red  0 * 0 = 0 .
+close
+
+-- II. Induction case
+open PNAT2 .
+ -- fresh constants
+ ops x y : -> PNat .
+ -- IH
+ eq x * 0 = 0 .
+ -- check
+ red s(x) * 0 = 0 .
+close
+
+-- Lemma 5 [Right successor of _*_ (rs*)] X * s(Y) = (X * Y) + X
+-- Proof of Lemma 5 By structural induction on X.
+
+-- I. Base case
+open PNAT2 .
+ -- fresh constants
+ ops y : -> PNat .
+ -- check
+ red  0 * s(y) = (0 * y) + 0 .
+close
+
+-- II. Induction case
+open PNAT2 .
+ -- fresh constants
+ ops x y : -> PNat .
+ -- IH
+ eq x * s(Y) = (x * Y) + x .
+ -- check
+ red s(x) * s(y) = (s(x) * y) + s(x) .
+close
+
+-- Theorem 5 [Correctness of a Tail Recursive Factorial (trf)] fact1(X) = fact2(X)
+-- Proof of Theorem 5 By structural induction on X.
+
+-- I. Base case
+open PNAT3 .
+ -- check
+ red fact1(0) = fact2(0) .
+close
+
+-- II. Induction case
+open PNAT3 .
+ -- fresh constants
+ ops x : -> PNat .
+ -- IH
+ eq fact1(x) = fact2(x) .
+ -- lemma 6
+ eq Y * sfact2(X, Z) = sfact2(X, Y * Z) .
+ -- check
+ red fact1(s(x)) = fact2(s(x)) .
+close
+
+-- Lemma 6 [Property of sfact2 (p‐sf2)] Y * sfact2(X,Z) = sfact2(X,Y * Z)
+-- Proof of Theorem 5 By structural induction on X.
+
+-- I. Base case
+open PNAT3 .
+ ops y z : -> PNat .
+ -- check
+ red y * sfact2(0, z) = sfact2(0, y * z) .
+close
+
+-- II. Induction case
+open PNAT3 .
+ -- fresh constants
+ ops x y z : -> PNat .
+ -- IH
+ eq Y * sfact2(x, Z) = sfact2(x, Y * Z) .
+ -- lemmas
+ eq (X + Y) * Z = (X * Z) + (Y * Z) . -- (d*o+)
+ -- check
+ red y * sfact2(s(x), z) = sfact2(s(x), y * z) .
+close

@@ -1,0 +1,129 @@
+mod* TRIV-ERR {
+  [Elt Err < Elt&Err]
+  op err : -> Err {constr} .
+}
+
+mod! LIST (M :: TRIV-ERR) {
+  [List]
+  op nil : -> List {constr} .
+  op _|_ : Elt.M List -> List {constr} .
+  op _@_ : List List -> List .
+  vars X Y E E2 : Elt.M .
+  vars L L1 L2 : List .
+  -- _@_
+  eq nil @ L = L .
+  eq (X | L1) @ L = X | (L1 @ L) .
+}
+
+mod! LIST1 {
+  pr(LIST)
+  -- EQLモジュールのop _=_ にreducttionを追加する
+  vars X Y E E2 : Elt.M .
+  vars L L1 L2 L3 : List .
+  eq (nil = (E | L1) ) = false .
+  eq (E | L1 = E2 | L2) = (E = E2) and (L1 = L2) .
+  -- reverse operation
+  -- simple recursive function
+  op rev1 : List -> List .
+  eq rev1(nil) = nil . -- (r1-1)
+  eq rev1(E | L1) = rev1(L1) @ (E | nil) . -- (r1-2)
+
+  -- tail recurive function
+  op rev2 : List -> List .
+  op sr2 : List List -> List .
+  eq rev2(L1) = sr2(L1,nil) . -- (r2)
+  eq sr2(nil,L2) = L2 . -- (sr2-1)
+  eq sr2(E | L1,L2) = sr2(L1,E | L2) . -- (sr2-2)
+}
+
+-- open LIST1 .
+--  ops l2 l3 : -> List .
+--  ops e1 e2 : -> Elt.M .
+ 
+--  red nil @ (l2 @ l3) .
+--  red nil @ (e1 | l2) .
+--  red e1 = e2 .
+-- close
+
+-- Theorem 1 [Associativity of _@_ (assoc@)]
+-- (L1 @ L2) @ L3 = L1 @ (L2 @ L3)
+-- Proof of Theorem 1 By structural induction on L1.
+-- I. Base case
+open LIST1 .
+  -- fresh constants
+  ops l2 l3 : -> List .
+  -- check
+  -- 拡張EQLモジュールでreduction結果がtrueになることを確認する
+  red (nil @ l2) @ l3 = nil @ (l2 @ l3) .
+close
+
+-- Ⅱ. Inductive case
+open LIST1 .
+  -- fresh constants
+  ops l1 l2 l3 l4 : -> List .
+  -- fresh constants
+  op e1 : -> Elt.M .
+  -- IH
+  -- 書き換え対象はL2,L3のみなのでl1はfresh constantでsubstitutionさせない
+  eq (l1 @ L2) @ L3 = l1 @ (L2 @ L3) .
+  -- check
+  red ((e1 | l1) @ l2) @ l3 = (e1 | l1) @ (l2 @ l3) .
+close
+
+mod! LIST2 {.
+  pr(LIST1)
+  -- enable append associativity
+  op _@_ : List List -> List {assoc}.
+  vars X Y E E2 : Elt.M .
+  vars L L1 L2 : List .
+  -- _@_
+  eq nil @ L = L .
+  eq (X | L1) @ L = X | (L1 @ L) .
+}
+
+-- Lemma 1 [A property of sr2 (p-sr2)]
+-- sr2(L1,E2 | L2) = sr2(L1,nil) @ (E2 | L2)
+-- Proof of Lemma 1 By structural induction on L1.
+-- I. Base case
+open LIST2 .
+  -- check
+  red sr2(nil,E2 | L2) = sr2(nil,nil) @ (E2 | L2) .
+close
+
+-- -- Ⅱ. Inductive case
+open LIST2 .
+  -- fresh constants
+  ops l1 l2 : -> List .
+  -- fresh constants
+  op e1 : -> Elt.M .
+  -- IH
+  -- 書き換え対象はE@,L2のみなのでl1はfresh constant
+  eq sr2(l1,E2 | L2) = sr2(l1,nil) @ (E2 | L2) .
+  -- check
+  red sr2((e1 | l1),E2 | L2) = sr2((e1 | l1),nil) @ (E2 | L2) .
+close
+
+-- Theorem 2 [Correctness of a tail recursive reverse (ctrr)]
+-- rev1(L1) = rev2(L1)
+-- Proof of Theorem 1 By structural induction on L1.
+-- I. Base case
+open LIST2 .
+  -- check
+  red rev1(nil) = rev2(nil) .
+close
+
+-- Ⅱ. Inductive case
+open LIST2 .
+  -- fresh constants
+  op l1 : -> List .
+  -- fresh constants
+  op e1 : -> Elt.M .
+  -- IH
+  -- 書き換え対象はl1のみなのでl1はfresh constant
+  eq rev1(l1) = rev2(l1) .
+  -- lemma1
+  -- lemmaはただの変数でreductionをする
+  eq sr2(L1, E2 | L2) = sr2(L1, nil) @ E2 | L2 .
+  -- check
+  red rev1(e1 | l1) = rev2(e1 | l1) .
+close

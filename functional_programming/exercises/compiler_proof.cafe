@@ -1,0 +1,266 @@
+mod! PNAT principal-sort PNat&Err {
+ [PZero NzPNat < PNat]
+ [PNat ErrPNat < PNat&Err]
+ op 0 : -> PZero {constr} .
+ op s : PNat -> NzPNat {constr} .
+ op errPNat : -> ErrPNat {constr} .
+ vars M N : PNat .
+ vars ME NE : PNat&Err .
+
+ -- ペアノ公理で定義した自然数の拡張
+ -- EQLモジュールの拡張
+ eq (0 = s(N)) = false .
+ eq (s(M) = s(N)) = (M = N) .
+ eq (errPNat = N) = false .
+
+ op if_then{_}else{_} : Bool PNat&Err PNat&Err -> PNat&Err .
+ eq if true then {ME} else {NE} = ME .
+ eq if false then {ME} else {NE} = NE .
+
+ -- 算術の追加
+ op _<_ : PNat PNat -> Bool .
+ eq 0 < 0 = false .
+ eq 0 < s(N) = true .
+ eq s(M) < 0 = false .
+ eq s(M) < s(N) = M < N .
+ -- +
+ op _+_ : PNat PNat -> PNat .
+ op _+_ : PNat&Err PNat&Err -> PNat&Err .
+ eq 0 + N = N .
+ eq s(M) + N = s(M + N) .
+ eq ME + errPNat = errPNat .
+ eq errPNat + NE = errPNat .
+ -- 乗算
+ op _*_ : PNat PNat -> PNat .
+ op _*_ : PNat&Err PNat&Err -> PNat&Err .
+ eq 0 * N = 0 .
+ eq s(M) * N = N + (M * N) .
+ eq ME * errPNat = errPNat .
+ eq errPNat * NE = errPNat .
+ -- 引き算
+ op sd : PNat PNat -> PNat .
+ op sd : PNat&Err PNat&Err -> PNat&Err .
+ eq sd(0,N) = N .
+ eq sd(s(M),0) = s(M) .
+ eq sd(s(M),s(N)) = sd(M,N) .
+ eq sd(ME,errPNat) = errPNat .
+ eq sd(errPNat,NE) = errPNat .
+ -- 
+ op _quo_ : PNat PZero -> ErrPNat .
+ op _quo_ : PNat NzPNat -> PNat .
+ op _quo_ : PNat&Err PNat&Err -> PNat&Err .
+ eq M quo 0 = errPNat .
+ eq M quo s(N) = if M < s(N) then {0} else {s(sd(M,s(N)) quo s(N))} .
+ eq ME quo errPNat = errPNat .
+ eq errPNat quo NE = errPNat . 
+
+ op _rem_ : PNat PZero -> ErrPNat .
+ op _rem_ : PNat NzPNat -> PNat .
+ op _rem_ : PNat&Err PNat&Err -> PNat&Err .
+ eq M rem 0 = errPNat .
+ eq M rem s(N) = if M < s(N) then {M} else {sd(M,s(N)) rem s(N)} .
+ eq ME rem errPNat = errPNat .
+ eq errPNat rem NE = errPNat . 
+}
+
+mod! EXP {
+ [ExpPNat < Exp]
+ op 0 : -> ExpPNat {constr} .
+ op s : ExpPNat -> ExpPNat {constr
+ }
+ op _+_ : Exp Exp -> Exp {constr l-assoc prec: 30} .
+ op _-_ : Exp Exp -> Exp {constr l-assoc prec: 30} .
+ op _*_ : Exp Exp -> Exp {constr l-assoc prec: 29} .
+ op _/_ : Exp Exp -> Exp {constr l-assoc prec: 29} .
+ op _%_ : Exp Exp -> Exp {constr l-assoc prec: 29} .
+}
+
+-- EXP(変数付き式)から自然数を返すインタープリター
+mod! INTER { pr(PNAT) pr(EXP)
+ op inter : ExpPNat -> PNat .
+ op inter : Exp -> PNat&Err .
+ var N : PNat . var EN : ExpPNat . vars E E1 E2 : Exp .
+ eq inter(0) = 0 .
+ eq inter(s(EN)) = s(inter(EN)) .
+ eq inter(E1 + E2) = inter(E1) + inter(E2) .
+ eq inter(E1 - E2) = sd(inter(E1),inter(E2)) .
+ eq inter(E1 * E2) = inter(E1) * inter(E2) .
+ eq inter(E1 / E2) = inter(E1) quo inter(E2) .
+ eq inter(E1 % E2) = inter(E1) rem inter(E2) .
+}
+
+mod! INSTR principal-sort Instr {
+ pr(PNAT)
+ [Instr]
+ op push : PNat -> Instr {constr} .
+ op add : -> Instr {constr} .
+ op minus : -> Instr {constr} .
+ op mult : -> Instr {constr} .
+ op div : -> Instr {constr} .
+ op mod : -> Instr {constr} .
+}
+
+-- 命令列とスタックを利用するための一般のlist
+mod! LIST (E :: TRIV) {
+[List]
+op nil : -> List {constr}
+op _|_ : Elt.E List -> List{constr} .
+op _@_ : List List -> List {assoc} .
+var E : Elt.E .
+vars L1 L2 : List .
+-- _@_
+eq nil @ L2 = L2 .
+eq (E | L1) @ L2 = E | (L1 @ L2) .
+}
+
+-- 命令リスト
+mod! ILIST {
+pr(LIST(INSTR) * {sort List -> IList})
+}
+
+-- スタック(ペアノ自然数)
+mod! STACK {
+pr(LIST(PNAT)* {sort List -> Stack,op nil -> empstk})
+}
+
+-- 命令列とスタックと実行結果
+mod! VM {
+ pr(ILIST)
+ pr(STACK)
+ op vm : IList -> PNat&Err .
+ op exec : IList Stack -> PNat&Err .
+ var IL : IList .
+ var PC : PNat .
+ var Stk : Stack .
+ var N : PNat .
+ vars NE NE1 NE2 : PNat&Err .
+ eq vm(IL) = exec(IL,empstk) .
+ eq exec(nil,empstk) = errPNat .
+ eq exec(nil,NE | empstk) = NE .
+ eq exec(nil,NE | NE1 | Stk) = errPNat .
+ eq exec(push(N) | IL,Stk) = exec(IL,N | Stk) .
+ eq exec(add | IL,empstk) = errPNat .
+ eq exec(add | IL,NE | empstk) = errPNat .
+ eq exec(add | IL,NE2 | NE1 | Stk) = exec(IL,NE1 + NE2 | Stk) .
+ eq exec(minus | IL,empstk) = errPNat .
+ eq exec(minus | IL,NE | empstk) = errPNat .
+ eq exec(minus | IL,NE2 | NE1 | Stk) = exec(IL,sd(NE1,NE2) | Stk) .
+ eq exec(mult | IL,empstk) = errPNat .
+ eq exec(mult | IL,NE | empstk) = errPNat .
+ eq exec(mult | IL,NE2 | NE1 | Stk) = exec(IL,NE1 * NE2 | Stk) .
+ eq exec(div | IL,empstk) = errPNat .
+ eq exec(div | IL,NE | empstk) = errPNat .
+ eq exec(div | IL,NE2 | NE1 | Stk) = exec(IL,NE1 quo NE2 | Stk) .
+ eq exec(mod | IL,empstk) = errPNat .
+ eq exec(mod | IL,NE | empstk) = errPNat .
+ eq exec(mod | IL,NE2 | NE1 | Stk) = exec(IL,NE1 rem NE2 | Stk) .
+}
+
+mod! COMP { 
+ pr(EXP) 
+ pr(ILIST)
+ op comp : Exp -> IList .
+ op en2n : ExpPNat -> PNat .
+ var EN : ExpPNat . 
+ vars E E1 E2 : Exp .
+ eq comp(EN) = push(en2n(EN)) | nil .
+ eq comp(E1 + E2) = comp(E1) @ comp(E2) @ (add | nil) .
+ eq comp(E1 - E2) = comp(E1) @ comp(E2) @ (minus | nil) .
+ eq comp(E1 * E2) = comp(E1) @ comp(E2) @ (mult | nil) .
+ eq comp(E1 / E2) = comp(E1) @ comp(E2) @ (div | nil) .
+ eq comp(E1 % E2) = comp(E1) @ comp(E2) @ (mod | nil) .
+ eq en2n(0) = 0 .
+ eq en2n(s(EN)) = s(en2n(EN)) .
+}
+
+mod! VERIFY-COMP { pr(INTER) pr(VM) pr(COMP)
+ op th1 : Exp -> Bool .
+ op lem1 : ExpPNat -> Bool .
+ op lem2 : Exp IList Stack -> Bool .
+ var E : Exp . 
+ var EN : ExpPNat . 
+ var L : IList . 
+ var S : Stack .
+ eq th1(E) = (inter(E) = vm(comp(E))) .
+ eq lem1(EN) = (inter(EN) = vm(comp(EN))) .
+ eq lem2(E,L,S) = (exec(comp(E) @ L,S) = exec(L,vm(comp(E)) | S)) .
+} 
+
+-- Theorem 1 [(relative) correctness of the compiler with 
+-- respect to the interpreter] inter(E) = vm(comp(E))
+-- Proof of Theorem 1 By structural induction on E.
+-- I. Base case
+open VERIFY-COMP .
+ -- fresh constants
+ op en : -> ExpPNat .
+ eq inter(EN) = vm(comp(EN)) .
+ -- check
+ red th1(en) .
+close
+
+-- II. Induction case
+open VERIFY-COMP .
+ -- fresh constants
+ ops e1 e2 : -> Exp .
+ -- induction hypothesis
+ eq inter(e1) = vm(comp(e1)) .
+ eq inter(e2) = vm(comp(e2)) .
+ -- lemmas
+ eq exec(comp(E) @ L,S) = exec(L,vm(comp(E)) | S) .
+ -- check
+ -- 四則演算 + 余りの計算を利用した結果が等しいことが必要
+ red th1(e1 + e2) .
+ red th1(e1 - e2) .
+ red th1(e1 * e2) .
+ red th1(e1 / e2) .
+ red th1(e1 % e2) .
+close
+
+-- Lemma 1 [(relative) correctness of the compiler with 
+-- respect to the interpreter] inter(EN) = vm(comp(EN))
+-- Proof of Lemma 1 By structural induction on EN.
+-- I. Base case
+open VERIFY-COMP .
+ -- check
+ red inter(0) = vm(comp(0)) .
+close
+
+-- II. Induction case
+open VERIFY-COMP .
+ -- fresh constants
+ op e : -> ExpPNat .
+ -- induction hypothesis
+ eq inter(EN) = vm(comp(EN)) .
+ -- check
+ red inter(s(e)) = vm(comp(s(e))) .
+close
+
+-- Lemma 2 [ correctness of the executed results compiling EXP on IList
+-- with respect on Stack  ] exec(comp(E) @ L,S) = exec(L,vm(comp(E)) | S)
+-- Proof of Lemma 2 By structural induction on E.
+-- I. Base case
+open VERIFY-COMP .
+ -- fresh constants
+ op en : -> ExpPNat .
+ op l : -> IList .
+ op s : -> Stack .
+ -- check
+ red exec(comp(en) @ l,s) = exec(l,vm(comp(en)) | s) .
+close
+
+-- II. Induction case
+open VERIFY-COMP .
+ -- fresh constants
+ ops e1 e2 : -> Exp .
+ op l : -> IList .
+ op s : -> Stack .
+ -- induction hypothesis
+ eq exec(comp(e1) @ L,S) = exec(L,vm(comp(e1)) | S) .
+ eq exec(comp(e2) @ L,S) = exec(L,vm(comp(e2)) | S) .
+ -- check
+ red exec(comp(e1 + e2) @ L,S) = exec(L,vm(comp(e1 + e2)) | S) .
+ red exec(comp(e1 - e2) @ L,S) = exec(L,vm(comp(e1 - e2)) | S) .
+ red exec(comp(e1 * e2) @ L,S) = exec(L,vm(comp(e1 * e2)) | S) .
+ red exec(comp(e1 / e2) @ L,S) = exec(L,vm(comp(e1 / e2)) | S) .
+ red exec(comp(e1 % e2) @ L,S) = exec(L,vm(comp(e1 % e2)) | S) .
+close

@@ -1,0 +1,320 @@
+mod! NAT-TRIPLE-IMLM { 
+ pr(NAT) [NatTriple]
+ op (_,_,_) : Nat Nat Nat -> NatTriple {constr} .
+ -- use local strategy
+ -- call by name
+ op 1st : NatTriple -> Nat {strat: (1 0)} .
+ vars FE SE TE : Nat .
+ eq 1st((FE,SE,TE)) = FE . 
+}
+
+-- call by name
+set trace whole on
+open NAT-TRIPLE-IMLM .
+ red 1st((1 + 1,2 + 2,3 + 3)) .
+close
+set trace whole off
+
+mod! NAT-TRIPLE-OMLM { 
+ pr(NAT) [NatTriple]
+ op (_,_,_) : Nat Nat Nat -> NatTriple {constr} .
+ -- call by value
+ op 1st : NatTriple -> Nat {strat: (0 1 0)} .
+ vars FE SE TE : Nat .
+ eq 1st((FE,SE,TE)) = FE . 
+}
+
+set trace whole on
+ open NAT-TRIPLE-OMLM .
+ red 1st((1 + 1,2 + 2,3 + 3)) .
+ red 1st((0 + 0 + 1 + 2,2 + 2,3 + 3)) .
+ close
+set trace whole off
+
+mod! NAT-IF { 
+ pr(NAT)
+ op if_then{_}else{_} : Bool Nat Nat -> Nat .
+ vars N1 N2 : Nat .
+ eq if true then {N1} else {N2} = N1 .
+ eq if false then {N1} else {N2} = N2 . 
+}
+
+show NAT-IF .
+
+mod! GLIST(E :: TRIV) {
+ [Nil NnList < List]
+ op nil : -> Nil {constr} .
+ op _|_ : Elt.E List -> List {constr} .
+}
+
+mod! INF-LIST(E :: TRIV) {
+ [InfList]
+ pr(NAT)
+ pr(GLIST(E))
+ op _|_ : Elt.E InfList -> InfList {strat: (1 0)} .
+
+ vars X Y : Elt.E .
+ vars IL IL2 : InfList .
+ var NzN : NzNat .
+ var N : Nat .
+ var L : List .
+
+ -- Listを使うため、GLISTをimport
+ -- インデックスを指定するため、NATをimport
+ op take : InfList Nat -> List .
+ eq take(IL,0) = nil .
+ -- 先頭から１要素取得して、Popする、再度takeする
+ -- スライスではない
+ eq take(X | IL, NzN) = X | take(IL,p NzN) .
+
+ -- 先頭から指定個数pop()する
+ -- 戻りのsortがInfList
+ op drop : InfList Nat -> InfList .
+ eq drop(IL,0) = IL .
+ eq drop(X | IL, NzN) = drop(IL,p NzN) .
+
+ -- other function
+ op _@_ : List InfList -> InfList .
+ eq nil @ IL = IL .
+ -- append for inflist
+ eq (X | L) @ IL = X | (L @ IL) .
+
+ -- merge by each top elements
+ op zip : InfList InfList -> InfList .
+ eq zip(X | IL,Y | IL2) = X | Y | zip(IL,IL2) .
+}
+
+
+-- INF-LIST << NATを代入
+mod! NAT-INF-LIST { 
+ pr(INF-LIST(NAT)) .
+ op mkNILFrom : Nat -> InfList .
+ op if_then{_}else{_} : Bool InfList InfList -> InfList .
+ var N : Nat . vars IL1 IL2 : InfList .
+ -- Nから無限リストを生成
+ eq mkNILFrom(N) = N | mkNILFrom(N + 1) .
+ eq if true then {IL1} else {IL2} = IL1 .
+ eq if false then {IL1} else {IL2} = IL2 . 
+}
+
+-- set trace whole on
+open NAT-INF-LIST .
+ red mkNILFrom(0) .
+ -- takeとmkNILFromの繰り返し
+ red take(mkNILFrom(0),10) .
+ red drop(mkNILFrom(0),10) .
+ -- red drop(mkNILFrom(0),997) .
+ red take(drop(mkNILFrom(0),997),10) .
+ red take(take(mkNILFrom(0),10) @ drop(mkNILFrom(0),10),20) .
+ red take(mkNILFrom(0),20) .
+ red zip(mkNILFrom(0),mkNILFrom(0)) .
+ red take(drop(zip(mkNILFrom(0),mkNILFrom(0)),997),10) .
+
+ red drop(mkNILFrom(10),1) .
+ red drop(mkNILFrom(10),0) .
+ red zip(mkNILFrom(10),mkNILFrom(20)) .
+close
+-- set trace whole off
+
+mod! ERATOSTHENES-SIEVE {
+ pr(NAT-INF-LIST)
+ op primes : -> InfList .
+ op sieve : InfList -> InfList .
+ op check : Nat InfList -> InfList .
+ --
+ vars X Y : Nat .
+ var NzX : NzNat .
+ var IL : InfList .
+ -- primes
+ eq primes = sieve(mkNILFrom(2)) .
+ -- sieve
+ eq sieve(X | IL) = X | sieve(check(X,IL)) .
+ -- check
+ eq check(0,IL) = IL .
+ eq check(NzX,Y | IL)
+ = if NzX divides Y then {check(NzX,IL)}
+ else {Y | check(NzX,IL)} .
+}
+
+open ERATOSTHENES-SIEVE .
+ red primes .
+ red take(primes,5) .
+ red take(primes,5) .
+ red take(primes,10) .
+ red take(primes,20) .
+ red take(primes,50) .
+ red take(primes,100) .
+ red take(primes,0) .
+ red zip(primes,primes) .
+close
+
+mod! HAMMING {
+ pr(NAT-INF-LIST)
+ op ham : -> InfList .
+ op 2* : InfList -> InfList .
+ op 3* : InfList -> InfList .
+ op 5* : InfList -> InfList .
+ op merge : InfList InfList -> InfList .
+ vars X Y : Nat .
+ vars IL IL2 : InfList .
+ -- ham
+ eq ham = 1 | merge(merge(2*(ham),3*(ham)),5*(ham)) .
+  -- 2*
+ eq 2*(X | IL) = 2 * X | 2*(IL) .
+ -- 3*
+ eq 3*(X | IL) = 3 * X | 3*(IL) .
+ -- 5*
+ eq 5*(X | IL) = 5 * X | 5*(IL) .
+ -- merge
+ eq merge(X | IL,Y | IL2)
+ = if X < Y
+ then {X | merge(IL,Y | IL2)}
+ else {if Y < X
+ then {Y | merge(X | IL,IL2)}
+ else {X | merge(IL,IL2)} } .
+}
+
+open HAMMING .
+ red ham .
+ red take(ham,10) .
+ red take(ham,20) .
+ red take(ham,50) .
+ red take(ham,100) .
+ red take(ham,0) .
+ red take(ham,1) .
+close
+
+-- Loc sortを定義するモジュール
+mod! LOC {
+ [Loc]
+ ops rs ms cs : -> Loc {constr} .
+}
+
+-- -- 状態を表現するモジュール
+mod! STATE principal-sort State {
+ pr(LOC)
+ [State]
+ op (locked:_,pc1:_,pc2:_) : Bool Loc Loc -> State {constr} .
+}
+
+-- スレッドIDのsortと条件分岐
+mod! TID {
+ [Tid]
+ ops t1 t2 : -> Tid {constr} .
+ op if_then{_}else{_} : Bool Tid Tid -> Tid .
+ vars T1 T2 : Tid .
+ eq if true then {T1} else {T2} = T1 .
+ eq if false then {T1} else {T2} = T2 .
+}
+
+mod! FMUTEX { 
+ pr(STATE) 
+ pr(TID)
+ op trans : State Tid -> State .
+ vars L1 L2 : Loc . 
+ var B : Bool .
+ -- t1
+ eq trans((locked: true,pc1: rs,pc2: L2),t1)
+ = (locked: true,pc1: rs,pc2: L2) .
+ -- 変化 rs -> ms
+ eq trans((locked: false,pc1: rs,pc2: L2),t1)
+ = (locked: false,pc1: ms,pc2: L2) .
+ -- 変化 ms -> cs Trueに更新
+ eq trans((locked: B,pc1: ms,pc2: L2),t1)
+ = (locked: true,pc1: cs,pc2: L2) .
+ -- 変化 cs -> rs Falseに更新
+ eq trans((locked: B,pc1: cs,pc2: L2),t1)
+ = (locked: false,pc1: rs,pc2: L2) .
+
+
+ -- t2
+ eq trans((locked: true,pc1: L1,pc2: rs),t2)
+ = (locked: true,pc1: L1,pc2: rs) .
+ eq trans((locked: false,pc1: L1,pc2: rs),t2)
+ = (locked: false,pc1: L1,pc2: ms) .
+ eq trans((locked: B,pc1: L1,pc2: ms),t2)
+ = (locked: true,pc1: L1,pc2: cs) .
+ eq trans((locked: B,pc1: L1,pc2: cs),t2)
+ = (locked: false,pc1: L1,pc2: rs) .
+}
+
+mod! COMP {
+ pr(INF-LIST(STATE)
+ * {sort InfList -> Comp, sort List -> FComp} )
+}
+
+mod! SCHED { 
+ pr(NAT)
+ pr(INF-LIST(TID) * {
+  sort InfList -> Sched
+  } )
+ var N : Nat .
+ vars sc1 sc2 : Sched .
+ op if_then{_}else{_} : Bool Sched Sched -> Sched .
+ eq if true then {sc1} else {sc2} = sc1 .
+ eq if false then {sc1} else {sc2} = sc2 . 
+ op sched : Nat -> Sched .
+ -- なんでt1,t2はopなのでimportされているので使える
+ eq sched(N) = if 2 divides N
+then {t1 | sched(N quo 2)} else {t2 | sched(N quo 2)} .
+}
+
+open SCHED .
+ red take(sched(123),10) .
+ red take(sched(1234),10) .
+ red take(sched(12345),10) .
+ 
+ red take(sched(2),10) .
+ red take(sched(1),0) .
+close
+
+mod! SIM { 
+ pr(FMUTEX) 
+ pr(COMP) 
+ pr(SCHED)
+ op sim : State Nat -> Comp .
+ op sub-sim : State Sched -> Comp .
+ var S : State . 
+ var N : Nat . 
+ var NzD : NzNat .
+ var T : Tid . 
+ var TIL : Sched .
+ eq sim(S,N) = sub-sim(S,sched(N)) .
+ eq sub-sim(S,T | TIL) = S | sub-sim(trans(S,T),TIL) .
+
+ -- if definiion
+ vars fc1 fc2 : FComp .
+ op if_then{_}else{_} : Bool FComp FComp -> FComp .
+ eq if true then {fc1} else {fc2} = fc1 .
+ eq if false then {fc1} else {fc2} = fc2 . 
+ -- mutex check
+ op mutex : State -> Bool .
+ vars L1 L2 : Loc .
+ var B : Bool .
+ eq mutex((locked: B,pc1: L1,pc2: L2)) = not (L1 == cs and L2 == cs) .
+ op sim-check : State Nat Nat -> FComp .
+ op sub-sim-check : State Sched Nat -> FComp .
+ var D : Nat . 
+ var NzD : NzNat .
+ eq sim-check(S,N,D) = sub-sim-check(S,sched(N),D) .
+ eq sub-sim-check(S,T | TIL,0) = S | nil .
+ eq sub-sim-check(S,T | TIL,NzD)
+ = if mutex(S) then {S | sub-sim-check(trans(S,T),TIL,p NzD)}
+ else {S | nil} .
+}
+
+open SIM .
+ red take(sim((locked: false,pc1: rs,pc2: rs),123),10) .
+ red take(sim((locked: false,pc1: rs,pc2: rs),1234),10) .
+ red take(sim((locked: false,pc1: rs,pc2: rs),12345),10) .
+ 
+ red take(sim((locked: false,pc1: rs,pc2: rs),1),1) .
+close
+
+open SIM .
+ red sim-check((locked: false,pc1: rs,pc2: rs),123,10) .
+ red sim-check((locked: false,pc1: rs,pc2: rs),1234,10) .
+ red sim-check((locked: false,pc1: rs,pc2: rs),12345,10) .
+
+ red sim-check((locked: true,pc1: cs,pc2: cs),12345,10) .
+close

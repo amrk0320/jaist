@@ -1,0 +1,20 @@
+-- モジュールの読み込み？
+open NAT .
+ -- 何の関数？
+ op fact : Nat -> Nat .
+ -- 自然数
+ var NzX : NzNat .
+ -- 場合分け
+ eq fact(0) = 1 .
+ eq fact(NzX) = NzX * fact(p NzX) .
+ -- 0
+ red fact(0) .
+ -- 1*(1-1)
+ red fact(1) .
+ -- 10*(1-1)
+ red fact(10) .
+ red fact(100) .
+ red fact(1000) .
+red fact(10000) .
+-- red fact(100000) . -- stack overflow
+close

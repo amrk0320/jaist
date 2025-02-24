@@ -1,0 +1,54 @@
+mod! NATLIST { 
+-- 外部モジュールの読み込み
+pr(NAT)
+pr(NAT-ERR)
+-- 　connected component の定義
+-- なんでこの定義必要？
+[Nil NnNatList < NatList]
+
+op nil : -> Nil {constr} .
+op _|_ : Nat NatList -> NnNatList {constr} .
+
+-- 型の実装
+op hd : Nil -> ErrNat .
+op hd : NnNatList -> Nat .
+op hd : NatList -> Nat&Err .
+
+var X : Nat .
+var Y : Nat .
+var L : NatList .
+var L2 : NatList .
+
+
+-- 関数の実装
+eq hd(nil) = errNat .
+eq hd(X | L) = X .
+
+op tl : NatList -> NatList .
+op _@_ : NatList NatList -> NatList .
+op [_.._] : Nat Nat -> NatList .
+op if_then {_} else {_} : Bool NatList NatList -> NatList .
+eq tl(nil) = nil .
+eq tl(X | L) = L .
+eq nil @ L2 = L2 .
+
+
+eq (X | L) @ L2 = X | (L @ L2) .
+eq [X .. Y] = if X > Y then {nil} else {X | [X + 1 .. Y]} .
+eq if true then {L} else {L2} = L .
+eq if false then {L} else {L2} = L2 .
+}
+
+open NATLIST .
+  red hd(nil) .
+  red hd(0 | nil) .
+  red hd(1 | 0 | nil) .
+
+
+  red hd(tl(nil)) .
+  red hd(tl(0 | nil)) .
+  red hd(tl(1 | 0 | nil)) .
+close
+
+
+

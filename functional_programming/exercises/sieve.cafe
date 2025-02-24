@@ -1,0 +1,94 @@
+mod! NAT-ERR { 
+ pr(NAT)
+ [Nat ErrNat < Nat&Err]
+ op errNat : -> ErrNat {constr} .
+ op p_ : Zero -> ErrNat .
+ op p_ : ErrNat -> ErrNat .
+ op p_ : Nat&Err -> Nat&Err .
+ op _quo_ : Nat&Err Zero -> ErrNat .
+ op _quo_ : Nat&Err ErrNat -> ErrNat .
+ op _quo_ : ErrNat Nat&Err -> ErrNat .
+ op _quo_ : Nat&Err Nat&Err -> Nat&Err .
+
+ var NE : Nat&Err .
+ eq p 0 = errNat .
+ eq p errNat = errNat .
+ eq NE quo 0 = errNat .
+ eq NE quo errNat = errNat .
+ eq errNat quo NE = errNat .
+}
+
+
+mod! NATLIST { 
+-- 外部モジュールの読み込み
+pr(NAT)
+pr(NAT-ERR)
+-- 　connected component の定義
+-- なんでこの定義必要？
+[Nil NnNatList < NatList]
+
+op nil : -> Nil {constr} .
+op _|_ : Nat NatList -> NnNatList {constr} .
+
+-- 型の実装
+op hd : Nil -> ErrNat .
+op hd : NnNatList -> Nat .
+op hd : NatList -> Nat&Err .
+
+var X : Nat .
+var Y : Nat .
+var L : NatList .
+var L2 : NatList .
+
+
+-- 関数の実装
+eq hd(nil) = errNat .
+eq hd(X | L) = X .
+
+op tl : NatList -> NatList .
+op _@_ : NatList NatList -> NatList .
+op [_.._] : Nat Nat -> NatList .
+op if_then {_} else {_} : Bool NatList NatList -> NatList .
+eq tl(nil) = nil .
+eq tl(X | L) = L .
+eq nil @ L2 = L2 .
+
+
+eq (X | L) @ L2 = X | (L @ L2) .
+eq [X .. Y] = if X > Y then {nil} else {X | [X + 1 .. Y]} .
+eq if true then {L} else {L2} = L .
+eq if false then {L} else {L2} = L2 .
+}
+
+
+mod! ERATOSTHENES-SIEVE {
+ -- imports
+ pr(NATLIST)
+ -- signature
+ op primesUpto : Nat -> NatList .
+ op sieve : NatList -> NatList .
+ op check : Nat NatList -> NatList .
+ -- CafeOBJ vars
+ vars X Y : Nat .
+ var NzX : NzNat .
+ var L : NatList .
+ -- equations
+ -- primesUpto
+ eq primesUpto(X) = sieve([2 .. X]) .
+ -- sieve
+ eq sieve(nil) = nil .
+ eq sieve(X | L) = X | sieve(check(X,L)) .
+ -- check
+ eq check(0,L) = L .
+ eq check(NzX,nil) = nil .
+ eq check(NzX,Y | L)
+ = if NzX divides Y then {check(NzX,L)}
+ else {Y | check(NzX,L)} .
+}
+
+open ERATOSTHENES-SIEVE .
+red primesUpto(10) .
+red primesUpto(20) .
+red primesUpto(50) .
+red primesUpto(100) .
+close

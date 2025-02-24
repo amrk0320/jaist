@@ -1,0 +1,171 @@
+
+-- catalog
+-- table
+-- itemid : (name,price)
+-- ('a,("apple",150)) | ('o,("orange",100)) | ('t,("tomato",90)) | empTable
+
+-- shopping cart
+-- list
+-- item and numbers
+-- ('o,4) | ('t,10) | ('o,6) | nil
+
+
+-- A bill item list
+-- triple of a string, a natural number and a natural number.
+-- item name, the number of the item to be ordered and the sub‐total for this item,
+-- last item is total price.
+-- (("orange",10,1000) | ("tomato",10,900) | nil, 1900)
+
+
+-- name and price
+-- ("apple",150)
+mod! TAG {
+ pr(PAIR(STRING-ERR,NAT-ERR) * {sort Pair -> Tag} )
+ -- [] の記法は何で必要？ -> 両方をとるsort
+ [Tag ErrTag < Tag&Err]
+ op errTag : -> ErrTag {constr} . --  これは変数を作るということ？
+ op (_,_) : String&Err Nat&Err -> Tag&Err .
+ op if_then{_}else{_} : Bool Tag&Err Tag&Err -> Tag&Err .
+ var SE : String&Err .
+ var NE : Nat&Err .
+ vars TE1 TE2 : Tag&Err .
+ -- (_,_)
+ eq (SE,NE) = Tag&Err .
+ eq (errStr,NE) = errTag . -- 何でコンストラクで定義している？
+ eq (SE,errNat) = errTag .
+ -- if_then{_}else{_}
+ eq if true then {TE1} else {TE2} = TE1 .
+ eq if false then {TE1} else {TE2} = TE2 .
+}
+
+mod! CATALOG {
+ -- pritn and rename
+ pr(
+  TABLE(K <= TRIV2QID, V <= TRIV-ERR-IF2TAG) * {
+ sort Table -> Catalog, sort EmpTable -> EmpCatalog,
+ sort NeTable -> NeCatalog, sort ErrTable -> ErrCatalog,
+ sort Table&Err -> Catalog&Err, op empTable -> empCatalog,
+ op errTable -> errCatalog } ) 
+ }
+ -- use view 
+ view TRIV-ERR-IF2TAG from TRIV-ERR-IF to TAG {
+ sort Elt -> Tag, sort Err -> ErrTag,
+ sort Elt&Err -> Tag&Err, op err -> errTag,
+ op (if_then{_}else{_}) -> (if_then{_}else{_}) 
+
+}
+
+open TAG .
+ op cat : -> Catalog .
+ eq cat = ('a,("apple",150)) | ('o,("orange",100)) | ('t,("tomato",90)) | empCatalog .
+ red cat .
+close
+
+open CATALOG .
+op cat : -> Catalog .
+eq cat = ('a,("apple",150)) | ('o,("orange",100)) | ('t,("tomato",90)) | empCatalog .
+red cat .
+close
+
+
+
+-- mod! CART { pr(GLIST-ERR(E <= TRIV-ERR2CART-ITEM) * {
+--  sort List -> Cart, sort Nil -> EmpCart,
+--  sort NnList -> NeCart, sort ErrList -> ErrCart,
+--  sort List&Err -> Cart&Err, op nil -> empCart,
+--  op errList -> errCart } )
+--  op norm : Cart -> Cart .
+--  op mkCart : Cart CItem -> Cart .
+--  vars I I2 : Qid . vars N N2 : Nat . 
+--  var C : Cart .
+--  -- norm
+--  eq norm(empCart) = empCart .
+--  eq norm((I,N) | C) = mkCart(norm(C),(I,N)) .
+--  -- mkCart
+--  eq mkCart(empCart,(I,N)) = (I,N) | empCart .
+--  eq mkCart((I2,N2) | C,(I,N))
+--  = if I == I2 then {(I,N + N2) | C} else
+--  {(I2,N2) | mkCart(C,(I,N))
+--  } .
+-- }
+
+-- open CART .
+--  op c : -> Cart .
+--  eq c = ('o,4) | ('t,10) | ('o,6) | empCart .
+--  red norm(c) .
+-- close
+
+-- -- 請求書
+-- mod! BILL-ITEM { 
+
+--  pr(TRIPLE(STRING-ERR,NAT-ERR,NAT-ERR)* {sort Triple -> BItem})
+
+
+--  [BItem ErrBItem < BItem&Err]
+--  -- なんでこれが必要？
+--  op errBItem : -> ErrBItem {constr} .
+--  -- なんでエラー処理が必要？
+--  op (_,_,_) : String&Err Nat&Err Nat&Err -> BItem&Err .
+--  var SE : String&Err . vars NE1 NE2 : Nat&Err .
+--  eq (errStr,NE1,NE2) = errBItem .
+--  eq (SE,errNat,NE2) = errBItem .
+--  eq (SE,NE1,errNat) = errBItem .
+-- }
+
+-- -- インスタンス化
+-- -- 汎用 -> (("orange",10,1000) | ("tomato",10,900) | nil, 1900)
+-- view TRIV-ERR2BILL-ITEM from TRIV-ERR to BILL-ITEM {
+--  sort Elt -> BItem,
+--  sort Err -> ErrBItem,
+--  sort Elt&Err -> BItem&Err,
+--  op err -> errBItem 
+-- }
+
+-- -- これはなんで必要？
+-- mod! BILIST principal-sort BIList {
+--  pr(GLIST-ERR(E <= TRIV-ERR2BILL-ITEM) * {
+--  sort List -> BIList, sort Nil -> NilBIList, sort NnList -> NnBIList,
+--  sort ErrList -> ErrBIList, sort List&Err -> BIList&Err,
+--  op nil -> nilBIL, op errList -> errBIL, } )
+--  op total : BIList -> Nat .
+--  op total : BIList&Err -> Nat&Err .
+--  var S : String . vars N ST : Nat . var BIL : BIList .
+--  eq total(errBIL) = errNat .
+--  eq total(nilBIL) = 0 .
+--  eq total((S,N,ST) | BIL) = ST + total(BIL) .
+-- }
+
+-- -- (("orange",10,1000) | ("tomato",10,900) | nilBIL, 1900)
+
+
+-- -- 最後のデータ構造
+-- -- これは何のデータ構造？
+-- -- ('a,("apple",150)) | ('o,("orange",100)) | ('t,("tomato",90)) | empTable ('o,4) | ('t,10) | ('o,6) | empCart
+-- mod! BILL { 
+--  pr(CATALOG) pr(CART)
+--  pr(PAIR(BILIST,NAT-ERR) * {sort Pair -> Bill})
+--  [Bill ErrBill < Bill&Err]
+--  op errBill : -> ErrBill {constr} .
+--  op (_,_) : BIList&Err Nat&Err -> Bill&Err .
+--  op mkBill : Catalog Cart -> Bill&Err .
+--  op mkSubBill : BIList&Err -> Bill&Err .
+--  op mkBIL : Catalog Cart -> BIList&Err .
+--  op mkSubBIL : Tag&Err Catalog Cart Nat -> BIList&Err .
+--  var BILE : BIList&Err . var BIL : BIList . var NE : Nat&Err .
+--  var CAT : Catalog . var I : Qid . vars N P : Nat .
+--  var IN : String . var C : Cart .
+--   -- (_,_)
+--  eq (errBIL,NE) = errBill .
+--  eq (BILE,errNat) = errBill .
+--  -- mkBill
+--  eq mkBill(CAT,C) = mkSubBill(mkBIL(CAT,norm(C))) .
+--  -- mkSubBill
+--  eq mkSubBill(errBIL) = errBill .
+--  eq mkSubBill(BIL) = (BIL,total(BIL)) .
+--  -- mkBIL
+--  eq mkBIL(CAT,empCart) = nilBIL .
+--  eq mkBIL(CAT,(I,N) | C) = mkSubBIL(lookup(CAT,I),CAT,C,N) .
+--  -- mkSubBIL
+--  eq mkSubBIL(errTag,CAT,C,N) = errBIL .
+--  eq mkSubBIL((IN,P),CAT,C,N) = (IN,N,N * P) | mkBIL(CAT,C) .
+-- }

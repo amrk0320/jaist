@@ -1,0 +1,180 @@
+mod! TID {
+[Tid]
+ops t1 t2 t3 t4 : -> Tid {constr} .
+}
+mod! LOC {
+[Loc]
+ops rs ms cs ws es ds : -> Loc {constr} .
+}
+
+-- 1.uncorrect * record
+mod! STATE4 {
+ pr(LOC)
+ [State4]
+ op (locked:_,pc1:_,pc2:_,pc3:_,pc4:_) : Bool Loc Loc Loc Loc -> State4 {constr} .
+}
+
+mod! FMUTEX4 {
+ pr(STATE4)
+ pr(TID)
+ vars L1 L2 L3 L4 : Loc .
+ var B : Bool .
+ -- t1
+ trans [want1] : (locked: false,pc1: rs,pc2: L2,pc3: L3,pc4: L4)
+ => (locked: false,pc1: ms,pc2: L2,pc3: L3,pc4: L4) .
+
+ trans [try1] : (locked: B,pc1: ms,pc2: L2,pc3: L3,pc4: L4)
+ => (locked: true,pc1: cs,pc2: L2,pc3: L3,pc4: L4) .
+ -- lock状態を見ていない
+ trans [exit1] : (locked: B,pc1: cs,pc2: L2,pc3: L3,pc4: L4)
+ => (locked: false,pc1: rs,pc2: L2,pc3: L3,pc4: L4) .
+ -- t2
+ trans [want2] : (locked: false,pc1: L1,pc2: rs,pc3: L3,pc4: L4)
+ => (locked: false,pc1: L1,pc2: ms,pc3: L3,pc4: L4) .
+ trans [try2] : (locked: B,pc1: L1,pc2: ms,pc3: L3,pc4: L4)
+ => (locked: true,pc1: L1,pc2: cs,pc3: L3,pc4: L4) .
+ trans [exit2] : (locked: B,pc1: L1,pc2: cs,pc3: L3,pc4: L4)
+ => (locked: false,pc1: L1,pc2: rs,pc3: L3,pc4: L4) .
+ -- t3
+ trans [want3] : (locked: false,pc1: L1,pc2: L2,pc3: rs,pc4: L4)
+ => (locked: false,pc1: L1,pc2: L2,pc3: ms,pc4: L4) .
+ trans [try3] : (locked: B,pc1: L1,pc2: L2,pc3: ms,pc4: L4)
+ => (locked: true,pc1: L1,pc2: L2,pc3: cs,pc4: L4) .
+ trans [exit3] : (locked: B,pc1: L1,pc2: L2,pc3: cs,pc4: L4)
+ => (locked: false,pc1: L1,pc2: L2,pc3: rs,pc4: L4) .
+ -- t4
+ trans [want4] : (locked: false,pc1: L1,pc2: L2,pc3: L3,pc4: rs)
+ => (locked: false,pc1: L1,pc2: L2,pc3: L3,pc4: ms) .
+ trans [try4] : (locked: B,pc1: L1,pc2: L2,pc3: L3,pc4: ms)
+ => (locked: true,pc1: L1,pc2: L2,pc3: L3,pc4: cs) .
+ trans [exit4] : (locked: B,pc1: L1,pc2: L2,pc3: L3,pc4: cs)
+ => (locked: false,pc1: L1,pc2: L2,pc3: L3,pc4: rs) .
+}
+
+open FMUTEX4 .
+red (locked: false, pc1: rs, pc2: rs, pc3: rs, pc4: rs)
+=(1,*)=>* (locked: B, pc1: L1, pc2: L2, pc3: L3, pc4: L4)
+suchThat (L1 == cs and L2 == cs) or
+(L1 == cs and L3 == cs) or (L2 == cs and L3 == cs) or
+(L1 == cs and L4 == cs) or (L2 == cs and L4 == cs) or
+(L3 == cs and L4 == cs) .
+show path 0-32 .
+close
+
+-- 2.correct * record
+mod! FMUTEX4CORRECT {
+ pr(STATE4)
+ pr(TID)
+ vars L1 L2 L3 L4 : Loc .
+ var B : Bool .
+ -- t1
+trans [try1] : (locked: false,pc1: rs,pc2: L2,pc3: L3,pc4: L4)
+=> (locked: true,pc1: cs,pc2: L2,pc3: L3,pc4: L4) .
+trans [exit1] : (locked: B,pc1: cs,pc2: L2,pc3: L3,pc4: L4)
+=> (locked: false,pc1: rs,pc2: L2,pc3: L3,pc4: L4) .
+ -- t2
+trans [try2] : (locked: false,pc1: L1,pc2: rs,pc3: L3,pc4: L4)
+=> (locked: true,pc1: L1,pc2: cs,pc3: L3,pc4: L4) .
+trans [exit2] : (locked: B,pc1: L1,pc2: cs,pc3: L3,pc4: L4)
+=> (locked: false,pc1: L1,pc2: rs,pc3: L3,pc4: L4) .
+
+ -- t3
+trans [try3] : (locked: false,pc1: L1,pc2: L2,pc3: rs,pc4: L4)
+=> (locked: true,pc1: L1,pc2: L2,pc3: cs,pc4: L4) .
+trans [exit3] : (locked: B,pc1: L1,pc2: L2,pc3: cs,pc4: L4)
+=> (locked: false,pc1: L1,pc2: L2,pc3: rs,pc4: L4) .
+ -- t4
+trans [try4] : (locked: false,pc1: L1,pc2: L2,pc3: L3,pc4: rs)
+=> (locked: true,pc1: L1,pc2: L2,pc3: L3,pc4: cs) .
+trans [exit4] : (locked: B,pc1: L1,pc2: L2,pc3: L3,pc4: cs)
+=> (locked: false,pc1: L1,pc2: L2,pc3: L3,pc4: rs) .
+}
+
+open FMUTEX4CORRECT .
+red (locked: false, pc1: rs, pc2: rs, pc3: rs, pc4: rs)
+=(1,*)=>* (locked: B, pc1: L1, pc2: L2, pc3: L3, pc4: L4)
+suchThat (L1 == cs and L2 == cs) or
+(L1 == cs and L3 == cs) or (L2 == cs and L3 == cs) or
+(L1 == cs and L4 == cs) or (L2 == cs and L4 == cs) or
+(L3 == cs and L4 == cs) .
+close
+
+-- 3.uncorrect * mulitiset
+mod! MULTISET(E :: TRIV) {
+[Elt.E < MSet]
+op emp : -> MSet {constr} .
+-- 定数になるので
+op _ _ : MSet MSet -> MSet {constr assoc comm id: emp} .
+}
+
+-- obserble component
+mod! OCOMP principal-sort OComp {
+ pr(TID)
+ pr(LOC)
+ [OComp]
+ op (pc[_]:_) : Tid Loc -> OComp {constr} .
+ op (locked:_) : Bool -> OComp {constr} .
+}
+
+-- use multiset for OComps
+mod! STATE {
+ pr(MULTISET(OCOMP) * {sort MSet -> OComps})
+ [State]
+ op {_} : OComps -> State {constr} .
+}
+
+mod! FMUTEXMULTISET {
+ pr(STATE)
+ vars T T1 T2 T3 T4 : Tid .
+ vars L1 L2 L3 L4 : Loc .
+ var B : Bool .
+ var OCs : OComps .
+
+-- trans: [State] => [State]の変更
+ -- ロックFなのでmsに入る
+ trans [want] : {(locked: false) (pc[T]: rs) OCs}
+ => {(locked: false) (pc[T]: ms) OCs} .
+ -- ロックする bad: msはロックfalseなら2要素が入れる。かつ、{(locked: B)でロック状態を見ていないのでcsに２つ入れてしまう
+ trans [try] : {(locked: B) (pc[T]: ms) OCs}
+ => {(locked: true) (pc[T]: cs) OCs} .
+ -- ロック解放
+ trans [exit] : {(locked: B) (pc[T]: cs) OCs}
+ => {(locked: false) (pc[T]: rs) OCs} .
+}
+
+-- 結果、CSに２つ入ってしまう
+open FMUTEXMULTISET .
+red {(locked: false) (pc[t1]: rs) (pc[t2]: rs) (pc[t3]: rs) (pc[t4]: rs)}
+=(1,*)=>* {(pc[T1]: L1) (pc[T2]: L2) (pc[T3]: L3) (pc[T4]: L4) OCs}
+suchThat (L1 == cs and L2 == cs) or
+(L1 == cs and L3 == cs) or (L2 == cs and L3 == cs) or
+(L1 == cs and L4 == cs) or (L2 == cs and L4 == cs) or
+(L3 == cs and L4 == cs) .
+show path 0-38 .
+close
+
+-- 4.correct * mulitiset
+mod! FMUTEXMULTISETCORRECT {
+ pr(STATE)
+ vars T T1 T2 T3 T4 : Tid .
+ vars L1 L2 L3 L4 : Loc .
+ var B : Bool .
+ var OCs : OComps .
+
+-- trans: [State] => [State]の変更
+ -- ロックする good: test and set
+ trans [try] : {(locked: false) (pc[T]: rs) OCs}
+ => {(locked: true) (pc[T]: cs) OCs} .
+ -- ロック解放
+ trans [exit] : {(locked: B) (pc[T]: cs) OCs}
+ => {(locked: false) (pc[T]: rs) OCs} .
+}
+
+open FMUTEXMULTISETCORRECT .
+red {(locked: false) (pc[t1]: rs) (pc[t2]: rs) (pc[t3]: rs) (pc[t4]: rs)}
+=(1,*)=>* {(pc[T1]: L1) (pc[T2]: L2) (pc[T3]: L3) (pc[T4]: L4) OCs}
+suchThat (L1 == cs and L2 == cs) or
+(L1 == cs and L3 == cs) or (L2 == cs and L3 == cs) or
+(L1 == cs and L4 == cs) or (L2 == cs and L4 == cs) or
+(L3 == cs and L4 == cs) .
+close

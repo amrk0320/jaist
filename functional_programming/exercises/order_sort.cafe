@@ -1,0 +1,12 @@
+mod! ORDERSORT { 
+pr(NAT)
+[Nil NnNatList < NatList]
+-- op _quo_ : Nat NzNat -> Nat .
+}
+
+open ORDERSORT .
+ red 1 quo 0 .
+close
+
+
+

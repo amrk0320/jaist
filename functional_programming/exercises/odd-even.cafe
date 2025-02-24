@@ -1,0 +1,18 @@
+open NAT .
+ op cond : Bool Nat Nat -> Nat .
+ op g : Nat Nat -> Nat .
+ op oedc-fact : Nat -> Nat .
+ vars X Y : Nat . var NzX : NzNat .
+ -- cond
+ -- trueのtermならXのNatを返す
+ eq cond(true,X,Y) = X .
+ -- falseのtermならXのNatを返す
+ eq cond(false,X,Y) = Y .
+ -- g
+ eq g(X,Y) = cond(X > Y, g(X,2 * Y) * g(sd(X,Y),2 * Y), X) .
+ -- oedc-fact
+ eq oedc-fact(0) = 1 .
+ eq oedc-fact(NzX) = g(NzX,1) .
+ --
+ red oedc-fact(10000) . -- can be computed
+close

@@ -1,0 +1,403 @@
+-- built in module
+-- mod* TRIV { [Elt] }
+
+-- general list
+mod! GLIST1(E :: TRIV) {
+ [Nil NnList < List] -- この記法は必要？
+ op nil : -> Nil {constr} . -- arityがない => constructor = 定数 0{} と同じ
+ op _|_ : Elt.E List -> NnList {constr} . -- constructor makes variable.
+ op _@_ : List List -> List .
+ var X : Elt.E .
+ vars L L2 : List .
+ eq nil @ L2 = L2 .
+ eq (X | L) @ L2 = X | (L @ L2) .
+}
+
+-- make view because use natural number list in general list
+view TRIV2NAT from TRIV to NAT {
+ sort Elt -> Nat,
+}
+
+-- do instantiate with decleared view.
+mod! NATLIST1 { pr(GLIST1(E <= TRIV2NAT)) }
+
+open NATLIST1 .
+ red (4 | 3 | nil) @ (2 | 1 | 0 | nil) .
+close
+
+-- defeine NAT-ERR
+mod! NAT-ERR { 
+ pr(NAT)
+ [Nat ErrNat < Nat&Err]
+ op errNat : -> ErrNat {constr} .
+ -- op p_ : Zero -> ErrNat .
+ -- op p_ : ErrNat -> ErrNat .
+ -- op p_ : Nat&Err -> Nat&Err .
+ -- op _quo_ : Nat&Err Zero -> ErrNat .
+ -- op _quo_ : Nat&Err ErrNat -> ErrNat .
+ -- op _quo_ : ErrNat Nat&Err -> ErrNat .
+ -- op _quo_ : Nat&Err Nat&Err -> Nat&Err .
+ -- var NE : Nat&Err .
+ -- eq p 0 = errNat .
+ -- eq p errNat = errNat .
+ -- eq NE quo 0 = errNat .
+ -- eq NE quo errNat = errNat .
+ -- eq errNat quo NE = errNat .
+}
+
+-- Generic Lists with Error Handling
+mod* TRIV-ERR {
+ [Elt Err < Elt&Err]
+ op err : -> Err .
+}
+
+view TRIV-ERR2NAT-ERR from TRIV-ERR to NAT-ERR {
+ sort Elt -> Nat,
+ sort Err -> ErrNat,
+ sort Elt&Err -> Nat&Err,
+ op err -> errNat,
+}
+
+mod! GLIST2(E :: TRIV-ERR) {
+ [Nil NnList < List]
+ -- to NatList
+ -- to NLNil
+ -- to NnNatList
+ op nil : -> Nil {constr} .
+ -- generic対象
+ -- to nlnil
+ op _|_ : Elt.E List -> NnList {constr} .
+ op hd : NnList -> Elt.E .
+ op tl : List -> List .
+ op _@_ : List List -> List .
+ vars L L2 : List .
+ eq hd(X | L) = X .
+ eq tl(nil) = nil .
+ eq tl(X | L) = L .
+ eq nil @ L2 = L2 .
+ eq (X | L) @ L2 = X | (L @ L2) .
+ -- ここからエラー処理
+ op hd : Nil -> Err.E .
+ op hd : List -> Elt&Err.E . -- これなんで必要？Nilが来た場合にエラーを返す必要があるから
+ eq hd(nil) = err.E . -- errNatに変換される
+ var X : Elt.E . -- Natに変換される
+}
+
+mod! NATLIST7 {
+pr(GLIST2(E <= TRIV-ERR2NAT-ERR)
+ * {sort List -> NatList,
+ sort Nil -> NLNil,
+ sort NnList -> NnNatList,
+ op nil -> nlnil }
+ )
+}
+
+-- -- genrcicのエラーハンドリングが可能な自然数のリストのインスタンス
+open NATLIST7 .
+ red hd(nlnil) .
+ red hd((4 | 3 | nlnil) @ (2 | 1 | 0 | nlnil)) .
+ red tl(nlnil) .
+ red tl((4 | 3 | nlnil) @ (2 | 1 | 0 | nlnil)) .
+close
+
+-- 一般のリストでエラーを扱えるもの
+mod! GLIST-ERR(E :: TRIV-ERR) {
+ [Nil NnList < List]
+ [List ErrList < List&Err]
+ op nil : -> Nil {constr} .
+ op _|_ : Elt.E List -> List {constr} .
+ op errList : -> ErrList {constr} .
+ op _|_ : Elt&Err.E List&Err -> List&Err .
+ op hd : Nil -> Err.E .
+ op hd : NnList -> Elt.E .
+ op hd : ErrList -> Err.E .
+ op hd : List&Err -> Elt&Err.E .
+ op tl : Nil -> ErrList .
+ op tl : NnList -> List .
+ op tl : ErrList -> ErrList .
+ op tl : List&Err -> List&Err .
+ op _@_ : List List -> List .
+ op _@_ : ErrList List&Err -> ErrList .
+ op _@_ : List&Err ErrList -> ErrList .
+ op _@_ : List&Err List&Err -> List&Err .
+ op if_then{_}else{_} : Bool List&Err List&Err -> List&Err .
+ var X : Elt.E .
+ var XE : Elt&Err.E .
+ vars L L2 : List .
+ vars LE LE2 : List&Err .
+ eq err.E | LE = errList .
+ eq XE | errList = errList .
+ eq hd(nil) = err.E .
+ eq hd(X | L) = X .
+ eq hd(errList) = err.E .
+ eq tl(nil) = errList .
+ eq tl(X | L) = L .
+ eq tl(errList) = errList .
+ eq nil @ L2 = L2 .
+ eq (X | L) @ L2 = X | (L @ L2) .
+ eq errList @ LE = errList .
+ eq LE @ errList = errList .
+ eq if true then {LE} else {LE2} = LE .
+ eq if false then {LE} else {LE2} = LE2 .
+-- [Nil NnList < List]
+-- [List ErrList < List&Err]
+--  -- to NatList
+--  -- to NLNil
+--  -- to NnNatList
+--  var X : Elt.E . -- Natに変換される
+--  op nil : -> Nil {constr} .
+--  -- generic対象
+--  -- to nlnil
+--  op _|_ : Elt.E List -> NnList {constr} .
+--  op hd : NnList -> Elt.E .
+--  op tl : List -> List .
+--  op _@_ : List List -> List .
+--  vars L L2 : List .
+--  eq hd(X | L) = X .
+--  eq tl(nil) = nil .
+--  eq tl(X | L) = L .
+--  eq nil @ L2 = L2 .
+--  eq (X | L) @ L2 = X | (L @ L2) .
+--  -- ここから新規追加１
+--  -- エラー処理
+--  op hd : Nil -> Err.E .
+--  op hd : List -> Elt&Err.E . -- これなんで必要？Nilが来た場合にエラーを返す必要があるから
+--  eq hd(nil) = err.E . -- errNatに変換される
+--  -- ここから新規追加２
+--  op errList : -> ErrList {constr} .
+--  -- リスト自体にエラーが来た場合を追加
+--  op _|_ : Elt&Err.E List&Err -> List&Err .
+--  op hd : ErrList -> Err.E . -- これはエラーの場合
+--  op hd : List&Err -> Elt&Err.E . -- これはエラーが来るかもしれない場合
+--  op tl : ErrList -> ErrList .
+--  op tl : List&Err -> List&Err .
+
+--  -- どっちかにエラーが来る場合
+--  op _@_ : ErrList List&Err -> ErrList .
+--  op _@_ : List&Err ErrList -> ErrList .
+--  -- 両方エラー
+--  op _@_ : List&Err List&Err -> List&Err .
+--  op if_then{_}else{_}: Bool List&Err List&Err -> List&Err .
+--  var XE : Elt&Err.E .
+--  vars L L2 : List .
+--  vars LE LE2 : List&Err .
+--  eq err.E | LE = errList .
+--  eq XE | errList = errList .
+--  eq hd(nil) = err.E .
+--  eq hd(X | L) = X .
+--  eq hd(errList) = err.E .
+--  -- リスト定義のエラーを返す仕様
+--  eq tl(nil) = errList .
+--  eq tl(X | L) = L .
+--  eq tl(errList) = errList .
+--  eq nil @ L2 = L2 .
+--  eq (X | L) @ L2 = X | (L @ L2) .
+--  eq errList @ LE = errList .
+--  eq LE @ errList = errList .
+--  eq if true then {LE} else {LE2} = LE .
+--  eq if false then {LE} else {LE2} = LE2 .
+}
+
+-- リスト自体を要素もつ自然数のリストのモジュール
+-- まだリストのリストは実装していないので、自然数をgenericに代入した
+-- まだリストのリストは実装していないので、自然数をgenericに代入した
+mod! NATLIST8 {
+pr(GLIST-ERR(E <= TRIV-ERR2NAT-ERR)
+* {sort List -> NatList,
+sort Nil -> NLNil,
+sort NnList -> NnNatList,
+sort ErrList -> ErrNatList,
+sort List&Err -> NatList&Err,
+op nil -> nlnil,
+op errList -> errNatList } )
+}
+
+open NATLIST8 .
+ red hd(nlnil) .
+ red hd((4 | 3 | nlnil) @ (2 | 1 | 0 | nlnil)) .
+ red tl(nlnil) .
+ red tl((4 | 3 | nlnil) @ (2 | 1 | 0 | nlnil)) .
+close
+
+view TRIV-ERR2NATLIST8 from TRIV-ERR to NATLIST8 {
+sort Elt -> NatList,
+sort Err -> ErrNatList,
+sort Elt&Err -> NatList&Err,
+op err -> errNatList,
+}
+
+mod! NATLISTLIST1 {
+ pr(GLIST-ERR(E <= TRIV-ERR2NATLIST8)
+ * {sort List -> NatListList,
+ sort Nil -> NLLNil,
+ sort NnList -> NnNatListList,
+ sort ErrList -> ErrNatListList,
+ sort List&Err -> NatListList&Err,
+ op nil -> nllnil,
+ op errList -> errNatListList } 
+ ) 
+}
+
+open NATLISTLIST1 .
+red hd(nllnil) .
+red hd((4 | 3 | nlnil) | (2 | 1 | 0 | nlnil) | nllnil) .
+red tl(nlnil) .
+red tl((4 | 3 | nlnil) | (2 | 1 | 0 | nlnil) | nllnil) .
+close
+
+-- sortのgenericと演算子のgeneric
+mod* TRIV-ERR-ORD {
+[Elt Err < Elt&Err]
+op err : -> Err .
+op ord : Elt Elt -> Bool .
+}
+
+mod! GQSORT(E :: TRIV-ERR-ORD) {
+-- imports
+pr(GLIST-ERR(E))
+-- signature
+op qsort : List -> List .
+op partition : Elt.E List List List -> List .
+-- CafeOBJ vars
+vars X Y : Elt.E .
+vars L LL RL : List .
+-- qsort
+eq qsort(nil) = nil .
+eq qsort(X | nil) = X | nil .
+eq qsort(X | Y | L) = partition(X,Y | L,nil,nil) .
+-- partition
+eq partition(X,nil,LL,RL) = qsort(LL) @ (X | qsort(RL)) .
+-- ord が追加されている比較の演算子
+eq partition(X,Y | L,LL,RL) = if ord.E(Y,X) then {partition(X,L,Y | LL,RL)}else {partition(X,L,LL,Y | RL)} . 
+}
+
+view TRIV-ERR-ORD2NAT-ERR from TRIV-ERR-ORD to NAT-ERR {
+ sort Elt -> Nat,
+ sort Err -> ErrNat,
+ sort Elt&Err -> Nat&Err,
+ op err -> errNat,
+ op ord -> _<_,
+}
+
+open GQSORT(E <= TRIV-ERR-ORD2NAT-ERR) .
+ red qsort(4 | 7 | 5 | 1 | 0 | 3 | 6 | 2 | nil) .
+close
+
+mod! STRING-ERR { 
+ pr(STRING)
+ [String ErrString < String&Err]
+ op errStr : -> ErrString {constr} . 
+}
+
+view TRIV-ERR-ORD2STRING-ERR from TRIV-ERR-ORD to STRING-ERR {
+sort Elt -> String,
+sort Err -> ErrString,
+sort Elt&Err -> String&Err,
+op err -> errStr,
+op ord -> string<,
+}
+
+
+open GQSORT(E <= TRIV-ERR-ORD2STRING-ERR) .
+red qsort("Lisp" | "Python" | "Pascal" | "CafeOBJ" | "C" |
+"Java" | "Prolog" | "Fortran" | nil) .
+close
+
+-- 自然数のリストを要素にもつソート
+mod! GLIST-ERR-ORD(E :: TRIV-ERR-ORD) {
+ [Nil NnList < List]
+ [List ErrList < List&Err]
+ op nil : -> Nil {constr} .
+ op _|_ : Elt.E List -> List {constr} .
+ op errList : -> ErrList {constr} .
+ op _|_ : Elt&Err.E List&Err -> List&Err .
+ op hd : Nil -> Err.E .
+ op hd : NnList -> Elt.E .
+ op hd : ErrList -> Err.E .
+ op hd : List&Err -> Elt&Err.E .
+ op tl : Nil -> ErrList .
+ op tl : NnList -> List .
+ op tl : ErrList -> ErrList .
+ op tl : List&Err -> List&Err .
+ op _@_ : List List -> List .
+ op _@_ : ErrList List&Err -> ErrList .
+ op _@_ : List&Err ErrList -> ErrList .
+ op _@_ : List&Err List&Err -> List&Err .
+ op if_then{_}else{_} : Bool List&Err List&Err -> List&Err .
+ var X : Elt.E .
+ var XE : Elt&Err.E .
+ vars L L2 : List .
+ vars LE LE2 : List&Err .
+ eq err.E | LE = errList .
+ eq XE | errList = errList .
+ eq hd(nil) = err.E .
+ eq hd(X | L) = X .
+ eq hd(errList) = err.E .
+ eq tl(nil) = errList .
+ eq tl(X | L) = L .
+ eq tl(errList) = errList .
+ eq nil @ L2 = L2 .
+ eq (X | L) @ L2 = X | (L @ L2) .
+ eq errList @ LE = errList .
+ eq LE @ errList = errList .
+ eq if true then {LE} else {LE2} = LE .
+ eq if false then {LE} else {LE2} = LE2 .
+ var Y : Elt.E .
+ op ord : List List -> Bool .
+ eq ord(nil,nil) = false .
+ eq ord(nil,Y | L2) = true . -- nilが後ろ
+ eq ord(X | L,nil) = false . -- nilでないものが前
+ eq ord(X | L,Y | L2) = ord.E(X,Y) or ((not ord.E(Y,X)) and ord(L,L2)) .
+}
+
+mod! NATLIST9 {
+pr(GLIST-ERR-ORD(E <= TRIV-ERR-ORD2NAT-ERR)
+* {sort List -> NatList,
+sort Nil -> NLNil,
+sort NnList -> NnNatList,
+sort ErrList -> ErrNatList,
+sort List&Err -> NatList&Err,
+op nil -> nlnil,
+op errList -> errNatList } )
+}
+
+view TRIV-ERR-ORD2NATLIST9 from TRIV-ERR-ORD to NATLIST9 {
+ sort Elt -> NatList,
+ sort Err -> ErrNatList,
+ sort Elt&Err -> NatList&Err,
+ op err -> errNatList,
+ op ord -> ord,
+}
+
+open GQSORT(E <= TRIV-ERR-ORD2NATLIST9) .
+red qsort((1 | 2 | nlnil) | (3 | 0 | 2 | nlnil) | (2 | nlnil) |
+(0 | nlnil) | nlnil | (1 | 1 | nlnil) | (3 | 0 | 1 | nlnil) |
+(1 | 0 | nlnil) | nil) .
+close
+
+-- genericからstringのリストを作成
+mod! STRLIST1 {
+pr(GLIST-ERR-ORD(E <= TRIV-ERR-ORD2STRING-ERR)
+* {sort List -> StrList,
+sort Nil -> SLNil,
+sort NnList -> NnStrList,
+sort ErrList -> ErrStrList,
+sort List&Err -> StrList&Err,
+op nil -> slnil,
+op errList -> errStrList } )
+}
+
+view TRIV-ERR-ORD2STRLIST1 from TRIV-ERR-ORD to STRLIST1 {
+sort Elt -> StrList,
+sort Err -> ErrStrList,
+sort Elt&Err -> StrList&Err,
+op err -> errStrList,
+op ord -> ord,
+}
+
+open GQSORT(E <= TRIV-ERR-ORD2STRLIST1) .
+red qsort(("CafeOBJ" | "Fortran" | slnil) |
+("Java" | "C" | "Fortran" | slnil) | ("Fortran" | slnil) |
+("C" | slnil) | slnil | ("CafeOBJ" | "CafeOBJ" | slnil) |
+("Java" | "C" | "CafeOBJ" | slnil) | ("CafeOBJ" | "C" | slnil) | nil) .
+close

@@ -1,0 +1,446 @@
+-- 変数のsort
+mod! VAR principal-sort Var {
+  [Var]
+  ops x y z tmp : -> Var .
+}
+
+--
+-- Some modules (data stuructures) used in the Minila
+-- implementation.
+--
+
+mod! BOOL-ERR {
+  pr(BOOL)
+  [Bool ErrBool < Bool&Err]
+  op errBool : -> ErrBool {constr} .
+}
+
+mod! NAT-ERR {
+  pr(NAT)
+  pr(BOOL-ERR)
+  [Nat ErrNat < Nat&Err]
+  op errNat : -> ErrNat {constr} .
+  op p_ : Nat&Err -> Nat&Err .
+  op _+_ : Nat&Err Nat&Err -> Nat&Err {assoc comm} .
+  op _*_ : Nat&Err Nat&Err -> Nat&Err {assoc comm} .
+  op sd : Nat&Err Nat&Err -> Nat&Err .
+  op _quo_ : Nat&Err Nat&Err -> Nat&Err .
+  op _rem_ : Nat&Err Nat&Err -> Nat&Err .
+  op _<_ : Nat&Err Nat&Err -> Bool&Err .
+  op _>_ : Nat&Err Nat&Err -> Bool&Err .
+  op if_then{_}else{_} : Bool&Err Nat&Err Nat&Err -> Nat&Err .
+  --
+  var N : Nat .
+  vars N&E N&E1 N&E2 : Nat&Err .
+  -- p_
+  eq p 0 = errNat .
+  eq p errNat = errNat .
+  -- _+_
+  eq errNat + N&E = errNat .
+  -- _*_
+  eq errNat * N&E = errNat .
+  -- sd
+  eq sd(errNat,N&E) = errNat .
+  eq sd(N&E,errNat) = errNat .
+  -- _quo_
+  eq N quo 0 = errNat .
+  eq errNat quo N&E = errNat .
+  eq N&E quo errNat = errNat .
+  -- _rem_
+  eq N rem 0 = errNat .
+  eq errNat rem N&E = errNat .
+  eq N&E rem errNat = errNat .
+  -- _<_
+  eq errNat < N&E = errBool .
+  eq N&E < errNat = errBool .
+  -- _>_
+  eq errNat > N&E = errBool .
+  eq N&E > errNat = errBool .
+  -- if_then{_}else{_}
+  eq if true then {N&E1} else {N&E2} = N&E1 .
+  eq if false then {N&E1} else {N&E2} = N&E2 .
+}
+
+mod! PAIR (M :: TRIV, N :: TRIV) {
+  [Pair]
+  op (_,_) : Elt.M Elt.N -> Pair {constr} .
+}
+
+mod* TRIV-ERR {
+  [Elt Err < Elt&Err]
+  op err : -> Err {constr} .
+}
+
+mod! LIST (M :: TRIV-ERR) {
+  pr(NAT-ERR)
+  [List]
+  op nil : -> List {constr} .
+  op _|_ : Elt.M List -> List {constr} .
+  op _@_ : List List -> List {r-assoc} .
+  op nth : List Nat&Err -> Elt&Err.M .
+  op len : List -> Nat .
+  vars X Y : Elt.M .
+  vars L L1 : List .
+  var N : Nat .
+  var NzN : NzNat .
+  -- _@_
+  eq nil @ L = L .
+  eq (X | L1) @ L = X | (L1 @ L) .
+  -- nth
+  eq nth(L,errNat) = err.M .
+  eq nth(nil,N) = err.M .
+  eq nth((X | L),0) = X .
+  eq nth((X | L),NzN) = nth(L,p NzN) .
+  -- len
+  eq len(nil) = 0 .
+  eq len(X | L) = len(L) + 1 .
+}
+
+--
+-- Module VAR is declared in ast.cafe.
+--
+mod! ENTRY {
+  pr(PAIR(VAR,NAT) * {sort Pair -> Entry})
+  [Entry ErrEntry < Entry&Err]
+  op errEntry : -> ErrEntry .
+}
+
+view TRIV-ERR2ENTRY from TRIV-ERR to ENTRY {
+  sort Elt -> Entry,
+  sort Err -> ErrEntry,
+  sort Elt&Err -> Entry&Err,
+  op err -> errEntry
+}
+
+--
+-- Variables, together with values (natural numbers) are
+-- registered into an environment.
+-- An environment is implemented as tables from variables to
+-- natural numbers (more concretely as lists of pairs of variables
+-- and natural numbers).
+--
+mod! ENV {
+  pr(NAT-ERR)
+  pr(LIST(M <= TRIV-ERR2ENTRY)
+     * {sort List -> Env, op nil -> empEnv})
+  [Env ErrEnv < Env&Err]
+  op errEnv : -> ErrEnv {constr} .
+  op _|_ : Entry&Err Env&Err -> Env&Err .
+  op update : Env&Err Var Nat&Err -> Env&Err .
+  op lookup : Env&Err Var -> Nat&Err .
+  op if_then{_}else{_} : Bool&Err Env&Err Env&Err -> Env&Err .
+  --
+  var E : Env .
+  vars V V1 : Var .
+  vars N N1 : Nat .
+  vars E&E E&E1 E&E2 : Env&Err .
+  var N&E : Nat&Err .
+  var ET&E : Entry&Err .
+  -- _|_
+  eq errEntry | E&E = errEnv .
+  eq ET&E | errEnv = errEnv .
+  -- update
+  eq update(E&E,V,errNat) = errEnv .
+  eq update(errEnv,V,N&E) = errEnv .
+  eq update(empEnv,V,N) = (V,N) | empEnv .
+  eq update((V1,N1) | E,V,N)
+     = if V1 == V then {(V,N) | E} else {(V1,N1) | update(E,V,N)} .
+  -- lookup
+  eq lookup(errEnv,V) = errNat .
+  eq lookup(empEnv,V) = errNat .
+  eq lookup((V1,N1) | E,V)
+     = if V1 == V then {N1} else {lookup(E,V)} .
+  -- if_then{_}else{_}
+  eq if true then {E&E1} else {E&E2} = E&E1 .
+  eq if false then {E&E1} else {E&E2} = E&E2 .
+}
+
+open ENV .
+  ops x y : -> Var .
+  op env : -> Env .
+  eq env = update(update(empEnv,x,0),y,1) .
+  red env .
+  red errEnv .
+  red lookup(env,x) .
+  red lookup(env,y) .
+  red nth(env,1) .
+  red nth(env,2) .
+close
+
+--
+-- A stack is represented as a list of natural numbers.
+--
+
+view TRIV-ERR2NAT-ERR from TRIV-ERR to NAT-ERR {
+  sort Elt -> Nat,
+  sort Err -> ErrNat,
+  sort Elt&Err -> Nat&Err,
+  op err -> errNat
+}
+
+mod! STACK {
+  pr(LIST(M <= TRIV-ERR2NAT-ERR)
+     * {sort List -> Stack, op nil -> empstk} )
+  [Stack ErrStack < Stack&Err]
+  op errStack : -> ErrStack {constr} .
+  op _|_ : Nat&Err Stack&Err -> Stack&Err .
+  --
+  var S&E : Stack&Err .
+  var N&E : Nat&Err .
+  -- _|_
+  eq errNat | S&E = errStack .
+  eq N&E | errStack = errStack .
+}
+
+
+--
+-- An instruction set
+--
+mod! INSTRUCT principal-sort Instruct {
+  pr(NAT)
+  pr(VAR)
+  [Instruct ErrInstruct < Instruct&Err]
+  --  命令の実態はInstructのコンストラクタ
+  op errInstruct : -> ErrInstruct {constr} .
+  op push : Nat -> Instruct {constr} .
+  op load : Var -> Instruct {constr} .
+  op store : Var -> Instruct {constr} .
+  op multiply : -> Instruct {constr} .
+  op divide : -> Instruct {constr} .
+  op mod : -> Instruct {constr} .
+  op add : -> Instruct {constr} .
+  op minus : -> Instruct {constr} .
+  op lessThan : -> Instruct {constr} .
+  op greaterThan : -> Instruct {constr} .
+  op equal : -> Instruct {constr} .
+  op notEqual : -> Instruct {constr} .
+  op and : -> Instruct {constr} .
+  op or : -> Instruct {constr} .
+  op jump : Nat -> Instruct {constr} .
+  op bjump : Nat -> Instruct {constr} .
+  op jumpOnCond : Nat -> Instruct {constr} .
+  op quit : -> Instruct {constr} .
+}
+
+view TRIV-ERR2INSTRUCT from TRIV-ERR to INSTRUCT {
+  sort Elt -> Instruct,
+  sort Err -> ErrInstruct,
+  sort Elt&Err -> Instruct&Err,
+  op err -> errInstruct 
+}
+
+--
+-- An instruction sequence is represented as a list of instructions.
+-- Instructのリストモジュールの作成
+--
+mod! ILIST {
+  pr(LIST(M <= TRIV-ERR2INSTRUCT)
+     * {sort List -> IList, op nil -> iln} )
+}
+
+--
+-- - Function vm takes an instruction sequence and returns the
+--   environment made by executing the instruction sequence.
+-- - Function exec takes an instruction sequence, a program pointe
+--   pointing to an instruction in the sequence, a stack, and an
+--   environment, and execute the instruction under the environment
+--   with the stack.
+-- - Function exec2 is an auxiliary function of exec.
+--
+mod! VM {
+  pr(ILIST)
+  pr(ENV)
+  pr(STACK)
+  op run : IList -> Env&Err .
+  op exec : IList Nat Stack&Err Env&Err -> Env&Err .
+  op exec2 : Instruct&Err IList Nat Stack&Err Env&Err -> Env&Err .
+  var IL : IList .
+  var PC : Nat .
+  var Stk : Stack .
+  var Env : Env .
+  vars N N1 N2 : Nat .
+  var V : Var .
+  var E&E : Env&Err .
+  var S&E : Stack&Err .
+  var I&E : Instruct&Err .
+  -- run マシンの起動のエントリーポイント
+  eq run(IL) = exec(IL,0,empstk,empEnv) .
+  -- exec 現在のマシンの状態
+  eq exec(IL,PC,errStack,E&E) = errEnv .
+  eq exec(IL,PC,S&E,errEnv) = errEnv .
+  eq exec(IL,PC,Stk,Env) = exec2(nth(IL,PC),IL,PC,Stk,Env) .
+
+  -- 共通エラー
+  eq exec2(I&E,IL,PC,errStack,Env) = errEnv .
+  eq exec2(I&E,IL,PC,Stk,errEnv) = errEnv .
+  
+  -- eq exec2(load(V),IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(load(V),IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(store(V),IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(store(V),IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(add,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(add,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(minus,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(minus,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(multiply,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(multiply,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(divide,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(divide,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(mod,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(mod,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(lessThan,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(lessThan,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(greaterThan,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(greaterThan,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(equal,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(equal,IL,PC,Stk,errEnv) = errEnv .
+
+  -- eq exec2(notEqual,IL,PC,errStack,Env) = errEnv .
+  -- eq exec2(notEqual,IL,PC,Stk,errEnv) = errEnv .
+
+  -- 特定の命令(Instruct)を入力に環境を返す
+  -- 以下個別命令の実装
+  -- push
+  op push : Nat -> Instruct {constr} .
+  eq exec2(push(N),IL,PC,Stk,Env) = exec(IL,PC + 1,N | Stk,Env) .
+  
+  -- load
+  -- loopupしてエラーなければスタックの先頭に値を積む
+  op load : Var -> Instruct {constr} .
+  eq exec2(load(V),IL,PC,Stk,Env) = 
+  if lookup(Env,V) == errNat then { errEnv } else { 
+    exec(IL,PC + 1,lookup(Env,V) | Stk,Env)
+  } .
+  -- スタックの値を変数(環境0に保存する
+  -- スタックが空ならpopできないのでエラー
+  -- スタックの先頭の自然数を変数として保存する
+  op store : Var -> Instruct {constr} .
+  eq exec2(store(V),IL,PC, empstk,Env) =  errEnv .
+  eq exec2(store(V),IL,PC,N | Stk,Env) =  exec(IL,PC + 1, Stk, update(Env, V, N)) .
+  -- 加算
+  -- スタックの要素数が1個以下ならエラー
+  op add : -> Instruct {constr} .
+  eq exec2(add,IL,PC,N2 | N1 | Stk,Env) = exec(IL,PC + 1, N1 + N2 | Stk, Env) .
+  eq exec2(add,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(add,IL,PC,empstk,Env) = errEnv .
+  -- 減算
+  op minus : -> Instruct {constr} .
+  eq exec2(minus,IL,PC,N2 | N1 | Stk,Env) = exec(IL,PC + 1, sd(N1, N2) | Stk, Env) .
+  eq exec2(minus,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(minus,IL,PC,empstk,Env) = errEnv .
+  -- 乗算
+  op multiply : -> Instruct {constr} .
+  eq exec2(multiply,IL,PC,N2 | N1 | Stk,Env) = exec(IL,PC + 1, N1 * N2 | Stk, Env) .
+  eq exec2(multiply,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(multiply,IL,PC,empstk,Env) = errEnv .
+  -- 商
+  op divide : -> Instruct {constr} .
+  eq exec2(divide,IL,PC,N2 | N1 | Stk,Env) = exec(IL,PC + 1, N1 quo N2 | Stk, Env) .
+  eq exec2(divide,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(divide,IL,PC,empstk,Env) = errEnv .
+  -- 剰余
+  op mod : -> Instruct {constr} .
+  eq exec2(mod,IL,PC,N2 | N1 | Stk,Env) = exec(IL,PC + 1, N1 rem N2 | Stk, Env) .
+  eq exec2(mod,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(mod,IL,PC,empstk,Env) = errEnv .
+
+  -- n1 < n2
+  -- Trueならスタックに１を積む、Falseなら0を積む
+  op lessThan : -> Instruct {constr} .
+  eq exec2(lessThan,IL,PC,N2 | N1 | Stk,Env) = 
+  if N1 < N2 then { exec(IL,PC + 1, 1 | Stk, Env) } else { 
+    exec(IL,PC + 1, 0 | Stk, Env)
+  } .
+  eq exec2(lessThan,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(lessThan,IL,PC,empstk,Env) = errEnv .
+  
+  op greaterThan : -> Instruct {constr} .
+  eq exec2(greaterThan,IL,PC,N2 | N1 | Stk,Env) = 
+  if N1 > N2 then { exec(IL,PC + 1, 1 | Stk, Env) } else { 
+    exec(IL,PC + 1, 0 | Stk, Env)
+  } .
+  eq exec2(greaterThan,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(greaterThan,IL,PC,empstk,Env) = errEnv .
+
+  op equal : -> Instruct {constr} .
+  eq exec2(equal,IL,PC,N2 | N1 | Stk,Env) = 
+  if N1 == N2 then { exec(IL,PC + 1, 1 | Stk, Env) } else { 
+    exec(IL,PC + 1, 0 | Stk, Env)
+  } .
+  eq exec2(equal,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(equal,IL,PC,empstk,Env) = errEnv .
+  
+  -- notEqual 注意: NATに！＝はないので値が等しいなら0をつむ
+  op notEqual : -> Instruct {constr} .
+  eq exec2(notEqual,IL,PC,N2 | N1 | Stk,Env) = 
+  if N1 == N2 then { exec(IL,PC + 1, 0 | Stk, Env) } else { 
+    exec(IL,PC + 1, 1 | Stk, Env)
+  } .
+  eq exec2(notEqual,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(notEqual,IL,PC,empstk,Env) = errEnv .
+
+  -- and  注意: 片方が0ならFalse(0)
+  op and : -> Instruct {constr} .
+  eq exec2(and,IL,PC,N2 | N1 | Stk,Env) = 
+  if N1 == 0 or N2 == 0 then { exec(IL,PC + 1, 0 | Stk, Env) } else { 
+    exec(IL,PC + 1, 1 | Stk, Env)
+  } .
+  eq exec2(and,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(and,IL,PC,empstk,Env) = errEnv .
+
+  -- or 片方が1ならTrue(1)
+  op or : -> Instruct {constr} .
+  eq exec2(or,IL,PC,N2 | N1 | Stk,Env) = 
+  if N1 == 1 or N2 == 1 then { exec(IL,PC + 1, 1 | Stk, Env) } else { 
+    exec(IL,PC + 1, 0 | Stk, Env)
+  } .
+  eq exec2(or,IL,PC,N1 | empstk,Env) = errEnv .
+  eq exec2(or,IL,PC,empstk,Env) = errEnv .
+
+  op jump : Nat -> Instruct {constr} .
+  eq exec2(jump(N),IL,PC,Stk,Env) = exec(IL,PC + N, Stk, Env) .
+  op bjump : Nat -> Instruct {constr} .
+  eq exec2(bjump(N),IL,PC,Stk,Env) = exec(IL,sd(PC, N), Stk, Env) .
+  op jumpOnCond : Nat -> Instruct {constr} .
+  -- スタックの先頭の値を見てジャンプ(+N)
+  -- Falseならジャンプせずに次に進む(+1)
+  -- スタックが空ならエラーを返す
+  eq exec2(jumpOnCond(N),IL,PC,empstk,Env) = errEnv .
+  eq exec2(jumpOnCond(N),IL,PC,N1 | Stk,Env) = 
+  if N1 == 0 then { exec(IL,PC + 1, Stk, Env) } else { exec(IL,PC + N, Stk, Env) } . 
+  -- quit
+  op quit : -> Instruct {constr} .
+  eq exec2(quit,IL,PC,Stk,Env) = Env .
+}
+
+-- set trace whole on
+
+open VM .
+  ops x y z : -> Var .
+  ops il0 il1 il2 : -> IList .
+  -- eq il0 = push(1) | store(x) | quit | iln .
+  -- red run(il0) .
+  -- eof
+  -- calculate 2^16
+  eq il1 = push(1) | store(x) | push(2) | store (y) | load(y) | load(y) | multiply | 
+           store(y) | load(x) | push(2) | multiply | store(x) | push(16) | load(x) | equal |
+           jumpOnCond(2) | bjump(12) | quit | iln .
+          
+  red run(il1) .
+  -- calculate 2^64
+  eq il2 = push(1) | store(x) | push(2) | store (y) | load(y) | load(y) | multiply |
+           store(y) | load(x) | push(2) | multiply | store(x) | push(64) | load(x) |
+           equal | jumpOnCond(2) | bjump(12) | quit | iln .
+  red run(il2) .
+close
+
+-- set trace whole off
